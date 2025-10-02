@@ -538,7 +538,7 @@ func (s *Server) handleGET(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send initial newline to establish connection
-	fmt.Fprintf(w, ":\n\n")
+	_, _ = fmt.Fprintf(w, ":\n\n")
 	flusher.Flush()
 
 	// Check for Last-Event-ID for resumption

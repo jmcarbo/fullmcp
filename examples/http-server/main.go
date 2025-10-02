@@ -106,7 +106,7 @@ func main() {
 					http.Error(w, "failed to read request", http.StatusBadRequest)
 					return
 				}
-				defer r.Body.Close()
+				defer func() { _ = r.Body.Close() }()
 
 				// Parse MCP message
 				var msg mcp.Message
@@ -168,7 +168,7 @@ func main() {
 				http.Error(w, "failed to read request", http.StatusBadRequest)
 				return
 			}
-			defer r.Body.Close()
+			defer func() { _ = r.Body.Close() }()
 
 			// Parse MCP message
 			var msg mcp.Message
