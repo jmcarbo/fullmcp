@@ -104,8 +104,10 @@ func TestIntegration_ToolWorkflow(t *testing.T) {
 
 	// Create transport pair and start server
 	clientConn, serverConn := newMockTransportPair()
+	serverCtx, serverCancel := context.WithCancel(context.Background())
+	defer serverCancel()
 	go func() {
-		_ = srv.Serve(context.Background(), serverConn)
+		_ = srv.Serve(serverCtx, serverConn)
 	}()
 	time.Sleep(50 * time.Millisecond)
 
@@ -164,8 +166,10 @@ func TestIntegration_ResourceWorkflow(t *testing.T) {
 
 	// Create transport and start server
 	clientConn, serverConn := newMockTransportPair()
+	serverCtx, serverCancel := context.WithCancel(context.Background())
+	defer serverCancel()
 	go func() {
-		_ = srv.Serve(context.Background(), serverConn)
+		_ = srv.Serve(serverCtx, serverConn)
 	}()
 	time.Sleep(50 * time.Millisecond)
 
@@ -240,8 +244,10 @@ func SkipTestIntegration_PromptWorkflow(t *testing.T) {
 
 	// Create transport and start server
 	clientConn, serverConn := newMockTransportPair()
+	serverCtx, serverCancel := context.WithCancel(context.Background())
+	defer serverCancel()
 	go func() {
-		_ = srv.Serve(context.Background(), serverConn)
+		_ = srv.Serve(serverCtx, serverConn)
 	}()
 	time.Sleep(50 * time.Millisecond)
 
@@ -314,8 +320,10 @@ func TestIntegration_ConcurrentClients(t *testing.T) {
 
 			// Create transport pair
 			clientConn, serverConn := newMockTransportPair()
+			serverCtx, serverCancel := context.WithCancel(context.Background())
+			defer serverCancel()
 			go func() {
-				_ = srv.Serve(context.Background(), serverConn)
+				_ = srv.Serve(serverCtx, serverConn)
 			}()
 			time.Sleep(50 * time.Millisecond)
 
@@ -365,8 +373,10 @@ func TestIntegration_ErrorHandling(t *testing.T) {
 
 	// Create transport and start server
 	clientConn, serverConn := newMockTransportPair()
+	serverCtx, serverCancel := context.WithCancel(context.Background())
+	defer serverCancel()
 	go func() {
-		_ = srv.Serve(context.Background(), serverConn)
+		_ = srv.Serve(serverCtx, serverConn)
 	}()
 	time.Sleep(50 * time.Millisecond)
 
@@ -440,8 +450,10 @@ func TestIntegration_ComplexWorkflow(t *testing.T) {
 
 	// Create transport and start server
 	clientConn, serverConn := newMockTransportPair()
+	serverCtx, serverCancel := context.WithCancel(context.Background())
+	defer serverCancel()
 	go func() {
-		_ = srv.Serve(context.Background(), serverConn)
+		_ = srv.Serve(serverCtx, serverConn)
 	}()
 	time.Sleep(50 * time.Millisecond)
 
