@@ -88,10 +88,6 @@ func TestServer_Initialize(t *testing.T) {
 	transport.writeMessage(initMsg)
 
 	// Send EOF to stop server
-	go func() {
-		<-context.Background().Done()
-	}()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		transport.mu.Lock()
