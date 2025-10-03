@@ -83,17 +83,8 @@ func createTestServer(t *testing.T) *server.Server {
 }
 
 // Common test operations
-func testProtocolOperations(t *testing.T, c *client.Client) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// Test initialization
-	if err := c.Connect(ctx); err != nil {
-		t.Fatalf("Connect failed: %v", err)
-	}
-	defer c.Close()
-
-	// Test list tools
+// Helper functions for testProtocolOperations to reduce cyclomatic complexity
+func testListTools(t *testing.T, ctx context.Context, c *client.Client) {
 	tools, err := c.ListTools(ctx)
 	if err != nil {
 		t.Fatalf("ListTools failed: %v", err)
@@ -104,8 +95,9 @@ func testProtocolOperations(t *testing.T, c *client.Client) {
 	if tools[0].Name != "add" {
 		t.Errorf("Expected tool 'add', got '%s'", tools[0].Name)
 	}
+}
 
-	// Test call tool
+func testCallTool(t *testing.T, ctx context.Context, c *client.Client) {
 	result, err := c.CallTool(ctx, "add", json.RawMessage(`{"a": 5, "b": 3}`))
 	if err != nil {
 		t.Fatalf("CallTool failed: %v", err)
@@ -113,8 +105,9 @@ func testProtocolOperations(t *testing.T, c *client.Client) {
 	if result != "8" {
 		t.Errorf("Expected result '8', got '%v'", result)
 	}
+}
 
-	// Test list resources
+func testListResources(t *testing.T, ctx context.Context, c *client.Client) {
 	resources, err := c.ListResources(ctx)
 	if err != nil {
 		t.Fatalf("ListResources failed: %v", err)
@@ -125,8 +118,9 @@ func testProtocolOperations(t *testing.T, c *client.Client) {
 	if resources[0].URI != "test://data" {
 		t.Errorf("Expected resource 'test://data', got '%s'", resources[0].URI)
 	}
+}
 
-	// Test read resource
+func testReadResource(t *testing.T, ctx context.Context, c *client.Client) {
 	content, err := c.ReadResource(ctx, "test://data")
 	if err != nil {
 		t.Fatalf("ReadResource failed: %v", err)
@@ -134,8 +128,9 @@ func testProtocolOperations(t *testing.T, c *client.Client) {
 	if string(content) != "test data content" {
 		t.Errorf("Expected 'test data content', got '%s'", string(content))
 	}
+}
 
-	// Test list prompts
+func testListPrompts(t *testing.T, ctx context.Context, c *client.Client) {
 	prompts, err := c.ListPrompts(ctx)
 	if err != nil {
 		t.Fatalf("ListPrompts failed: %v", err)
@@ -146,8 +141,9 @@ func testProtocolOperations(t *testing.T, c *client.Client) {
 	if prompts[0].Name != "greeting" {
 		t.Errorf("Expected prompt 'greeting', got '%s'", prompts[0].Name)
 	}
+}
 
-	// Test get prompt
+func testGetPrompt(t *testing.T, ctx context.Context, c *client.Client) {
 	messages, err := c.GetPrompt(ctx, "greeting", map[string]interface{}{"name": "World"})
 	if err != nil {
 		t.Fatalf("GetPrompt failed: %v", err)
@@ -161,7 +157,6 @@ func testProtocolOperations(t *testing.T, c *client.Client) {
 	if len(messages[0].Content) != 1 {
 		t.Errorf("Expected 1 content item, got %d", len(messages[0].Content))
 	}
-	// Verify content is TextContent
 	if textContent, ok := messages[0].Content[0].(mcp.TextContent); ok {
 		if textContent.Text != "Hello, World!" {
 			t.Errorf("Expected text 'Hello, World!', got '%s'", textContent.Text)
@@ -169,6 +164,23 @@ func testProtocolOperations(t *testing.T, c *client.Client) {
 	} else {
 		t.Error("Expected TextContent type")
 	}
+}
+
+func testProtocolOperations(t *testing.T, c *client.Client) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := c.Connect(ctx); err != nil {
+		t.Fatalf("Connect failed: %v", err)
+	}
+	defer c.Close()
+
+	testListTools(t, ctx, c)
+	testCallTool(t, ctx, c)
+	testListResources(t, ctx, c)
+	testReadResource(t, ctx, c)
+	testListPrompts(t, ctx, c)
+	testGetPrompt(t, ctx, c)
 }
 
 func TestStdioTransport(t *testing.T) {

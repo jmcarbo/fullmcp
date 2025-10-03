@@ -190,6 +190,173 @@ func TestServerCapabilities(t *testing.T) {
 	}
 }
 
+// Helper functions for TestPromptMessageUnmarshalJSON to reduce cyclomatic complexity
+func verifySingleTextContent(t *testing.T, pm *PromptMessage) {
+	if pm.Role != "user" {
+		t.Errorf("Expected role 'user', got '%s'", pm.Role)
+	}
+	if len(pm.Content) != 1 {
+		t.Fatalf("Expected 1 content item, got %d", len(pm.Content))
+	}
+	tc, ok := pm.Content[0].(TextContent)
+	if !ok {
+		t.Fatalf("Expected TextContent, got %T", pm.Content[0])
+	}
+	if tc.Type != "text" {
+		t.Errorf("Expected type 'text', got '%s'", tc.Type)
+	}
+	if tc.Text != "Hello, World!" {
+		t.Errorf("Expected text 'Hello, World!', got '%s'", tc.Text)
+	}
+}
+
+func verifyImageContent(t *testing.T, pm *PromptMessage) {
+	if pm.Role != "assistant" {
+		t.Errorf("Expected role 'assistant', got '%s'", pm.Role)
+	}
+	if len(pm.Content) != 1 {
+		t.Fatalf("Expected 1 content item, got %d", len(pm.Content))
+	}
+	ic, ok := pm.Content[0].(ImageContent)
+	if !ok {
+		t.Fatalf("Expected ImageContent, got %T", pm.Content[0])
+	}
+	if ic.Type != "image" {
+		t.Errorf("Expected type 'image', got '%s'", ic.Type)
+	}
+	if ic.Data != "base64encodeddata" {
+		t.Errorf("Expected data 'base64encodeddata', got '%s'", ic.Data)
+	}
+	if ic.MimeType != "image/png" {
+		t.Errorf("Expected mimeType 'image/png', got '%s'", ic.MimeType)
+	}
+}
+
+func verifyAudioContent(t *testing.T, pm *PromptMessage) {
+	if len(pm.Content) != 1 {
+		t.Fatalf("Expected 1 content item, got %d", len(pm.Content))
+	}
+	ac, ok := pm.Content[0].(AudioContent)
+	if !ok {
+		t.Fatalf("Expected AudioContent, got %T", pm.Content[0])
+	}
+	if ac.Type != "audio" {
+		t.Errorf("Expected type 'audio', got '%s'", ac.Type)
+	}
+	if ac.Data != "base64audiodata" {
+		t.Errorf("Expected data 'base64audiodata', got '%s'", ac.Data)
+	}
+	if ac.MimeType != "audio/mp3" {
+		t.Errorf("Expected mimeType 'audio/mp3', got '%s'", ac.MimeType)
+	}
+}
+
+func verifyResourceContent(t *testing.T, pm *PromptMessage) {
+	if len(pm.Content) != 1 {
+		t.Fatalf("Expected 1 content item, got %d", len(pm.Content))
+	}
+	rc, ok := pm.Content[0].(ResourceContent)
+	if !ok {
+		t.Fatalf("Expected ResourceContent, got %T", pm.Content[0])
+	}
+	if rc.Type != "resource" {
+		t.Errorf("Expected type 'resource', got '%s'", rc.Type)
+	}
+	if rc.URI != "file:///test.txt" {
+		t.Errorf("Expected uri 'file:///test.txt', got '%s'", rc.URI)
+	}
+	if rc.MimeType != "text/plain" {
+		t.Errorf("Expected mimeType 'text/plain', got '%s'", rc.MimeType)
+	}
+	if rc.Text != "content" {
+		t.Errorf("Expected text 'content', got '%s'", rc.Text)
+	}
+}
+
+func verifyResourceLinkContent(t *testing.T, pm *PromptMessage) {
+	if len(pm.Content) != 1 {
+		t.Fatalf("Expected 1 content item, got %d", len(pm.Content))
+	}
+	rlc, ok := pm.Content[0].(ResourceLinkContent)
+	if !ok {
+		t.Fatalf("Expected ResourceLinkContent, got %T", pm.Content[0])
+	}
+	if rlc.Type != "resource" {
+		t.Errorf("Expected type 'resource', got '%s'", rlc.Type)
+	}
+	if rlc.Resource.URI != "test://resource" {
+		t.Errorf("Expected uri 'test://resource', got '%s'", rlc.Resource.URI)
+	}
+	if rlc.Resource.Name != "Test Resource" {
+		t.Errorf("Expected name 'Test Resource', got '%s'", rlc.Resource.Name)
+	}
+}
+
+func verifyMixedContent(t *testing.T, pm *PromptMessage) {
+	if len(pm.Content) != 4 {
+		t.Fatalf("Expected 4 content items, got %d", len(pm.Content))
+	}
+
+	tc1, ok := pm.Content[0].(TextContent)
+	if !ok {
+		t.Errorf("Content[0]: Expected TextContent, got %T", pm.Content[0])
+	} else if tc1.Text != "Here's an image:" {
+		t.Errorf("Content[0]: Expected 'Here's an image:', got '%s'", tc1.Text)
+	}
+
+	ic, ok := pm.Content[1].(ImageContent)
+	if !ok {
+		t.Errorf("Content[1]: Expected ImageContent, got %T", pm.Content[1])
+	} else if ic.Data != "img123" {
+		t.Errorf("Content[1]: Expected 'img123', got '%s'", ic.Data)
+	}
+
+	tc2, ok := pm.Content[2].(TextContent)
+	if !ok {
+		t.Errorf("Content[2]: Expected TextContent, got %T", pm.Content[2])
+	} else if tc2.Text != "And some audio:" {
+		t.Errorf("Content[2]: Expected 'And some audio:', got '%s'", tc2.Text)
+	}
+
+	ac, ok := pm.Content[3].(AudioContent)
+	if !ok {
+		t.Errorf("Content[3]: Expected AudioContent, got %T", pm.Content[3])
+	} else if ac.Data != "audio456" {
+		t.Errorf("Content[3]: Expected 'audio456', got '%s'", ac.Data)
+	}
+}
+
+func verifyEmptyContent(t *testing.T, pm *PromptMessage) {
+	if pm.Role != "user" {
+		t.Errorf("Expected role 'user', got '%s'", pm.Role)
+	}
+	if len(pm.Content) != 0 {
+		t.Errorf("Expected 0 content items, got %d", len(pm.Content))
+	}
+}
+
+func verifyUnknownTypeFallback(t *testing.T, pm *PromptMessage) {
+	if len(pm.Content) != 1 {
+		t.Fatalf("Expected 1 content item, got %d", len(pm.Content))
+	}
+	tc, ok := pm.Content[0].(TextContent)
+	if !ok {
+		t.Fatalf("Expected TextContent fallback, got %T", pm.Content[0])
+	}
+	if tc.Type != "unknown_type" {
+		t.Errorf("Expected type 'unknown_type', got '%s'", tc.Type)
+	}
+}
+
+func verifyMissingRole(t *testing.T, pm *PromptMessage) {
+	if pm.Role != "" {
+		t.Errorf("Expected empty role, got '%s'", pm.Role)
+	}
+	if len(pm.Content) != 1 {
+		t.Fatalf("Expected 1 content item, got %d", len(pm.Content))
+	}
+}
+
 func TestPromptMessageUnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -206,24 +373,7 @@ func TestPromptMessageUnmarshalJSON(t *testing.T) {
 				]
 			}`,
 			wantErr: false,
-			verify: func(t *testing.T, pm *PromptMessage) {
-				if pm.Role != "user" {
-					t.Errorf("Expected role 'user', got '%s'", pm.Role)
-				}
-				if len(pm.Content) != 1 {
-					t.Fatalf("Expected 1 content item, got %d", len(pm.Content))
-				}
-				tc, ok := pm.Content[0].(TextContent)
-				if !ok {
-					t.Fatalf("Expected TextContent, got %T", pm.Content[0])
-				}
-				if tc.Type != "text" {
-					t.Errorf("Expected type 'text', got '%s'", tc.Type)
-				}
-				if tc.Text != "Hello, World!" {
-					t.Errorf("Expected text 'Hello, World!', got '%s'", tc.Text)
-				}
-			},
+			verify:  verifySingleTextContent,
 		},
 		{
 			name: "image content",
@@ -238,27 +388,7 @@ func TestPromptMessageUnmarshalJSON(t *testing.T) {
 				]
 			}`,
 			wantErr: false,
-			verify: func(t *testing.T, pm *PromptMessage) {
-				if pm.Role != "assistant" {
-					t.Errorf("Expected role 'assistant', got '%s'", pm.Role)
-				}
-				if len(pm.Content) != 1 {
-					t.Fatalf("Expected 1 content item, got %d", len(pm.Content))
-				}
-				ic, ok := pm.Content[0].(ImageContent)
-				if !ok {
-					t.Fatalf("Expected ImageContent, got %T", pm.Content[0])
-				}
-				if ic.Type != "image" {
-					t.Errorf("Expected type 'image', got '%s'", ic.Type)
-				}
-				if ic.Data != "base64encodeddata" {
-					t.Errorf("Expected data 'base64encodeddata', got '%s'", ic.Data)
-				}
-				if ic.MimeType != "image/png" {
-					t.Errorf("Expected mimeType 'image/png', got '%s'", ic.MimeType)
-				}
-			},
+			verify:  verifyImageContent,
 		},
 		{
 			name: "audio content",
@@ -273,24 +403,7 @@ func TestPromptMessageUnmarshalJSON(t *testing.T) {
 				]
 			}`,
 			wantErr: false,
-			verify: func(t *testing.T, pm *PromptMessage) {
-				if len(pm.Content) != 1 {
-					t.Fatalf("Expected 1 content item, got %d", len(pm.Content))
-				}
-				ac, ok := pm.Content[0].(AudioContent)
-				if !ok {
-					t.Fatalf("Expected AudioContent, got %T", pm.Content[0])
-				}
-				if ac.Type != "audio" {
-					t.Errorf("Expected type 'audio', got '%s'", ac.Type)
-				}
-				if ac.Data != "base64audiodata" {
-					t.Errorf("Expected data 'base64audiodata', got '%s'", ac.Data)
-				}
-				if ac.MimeType != "audio/mp3" {
-					t.Errorf("Expected mimeType 'audio/mp3', got '%s'", ac.MimeType)
-				}
-			},
+			verify:  verifyAudioContent,
 		},
 		{
 			name: "resource content",
@@ -306,27 +419,7 @@ func TestPromptMessageUnmarshalJSON(t *testing.T) {
 				]
 			}`,
 			wantErr: false,
-			verify: func(t *testing.T, pm *PromptMessage) {
-				if len(pm.Content) != 1 {
-					t.Fatalf("Expected 1 content item, got %d", len(pm.Content))
-				}
-				rc, ok := pm.Content[0].(ResourceContent)
-				if !ok {
-					t.Fatalf("Expected ResourceContent, got %T", pm.Content[0])
-				}
-				if rc.Type != "resource" {
-					t.Errorf("Expected type 'resource', got '%s'", rc.Type)
-				}
-				if rc.URI != "file:///test.txt" {
-					t.Errorf("Expected uri 'file:///test.txt', got '%s'", rc.URI)
-				}
-				if rc.MimeType != "text/plain" {
-					t.Errorf("Expected mimeType 'text/plain', got '%s'", rc.MimeType)
-				}
-				if rc.Text != "content" {
-					t.Errorf("Expected text 'content', got '%s'", rc.Text)
-				}
-			},
+			verify:  verifyResourceContent,
 		},
 		{
 			name: "resource link content",
@@ -343,24 +436,7 @@ func TestPromptMessageUnmarshalJSON(t *testing.T) {
 				]
 			}`,
 			wantErr: false,
-			verify: func(t *testing.T, pm *PromptMessage) {
-				if len(pm.Content) != 1 {
-					t.Fatalf("Expected 1 content item, got %d", len(pm.Content))
-				}
-				rlc, ok := pm.Content[0].(ResourceLinkContent)
-				if !ok {
-					t.Fatalf("Expected ResourceLinkContent, got %T", pm.Content[0])
-				}
-				if rlc.Type != "resource" {
-					t.Errorf("Expected type 'resource', got '%s'", rlc.Type)
-				}
-				if rlc.Resource.URI != "test://resource" {
-					t.Errorf("Expected uri 'test://resource', got '%s'", rlc.Resource.URI)
-				}
-				if rlc.Resource.Name != "Test Resource" {
-					t.Errorf("Expected name 'Test Resource', got '%s'", rlc.Resource.Name)
-				}
-			},
+			verify:  verifyResourceLinkContent,
 		},
 		{
 			name: "mixed content types",
@@ -374,43 +450,7 @@ func TestPromptMessageUnmarshalJSON(t *testing.T) {
 				]
 			}`,
 			wantErr: false,
-			verify: func(t *testing.T, pm *PromptMessage) {
-				if len(pm.Content) != 4 {
-					t.Fatalf("Expected 4 content items, got %d", len(pm.Content))
-				}
-
-				// Verify first text
-				tc1, ok := pm.Content[0].(TextContent)
-				if !ok {
-					t.Errorf("Content[0]: Expected TextContent, got %T", pm.Content[0])
-				} else if tc1.Text != "Here's an image:" {
-					t.Errorf("Content[0]: Expected 'Here's an image:', got '%s'", tc1.Text)
-				}
-
-				// Verify image
-				ic, ok := pm.Content[1].(ImageContent)
-				if !ok {
-					t.Errorf("Content[1]: Expected ImageContent, got %T", pm.Content[1])
-				} else if ic.Data != "img123" {
-					t.Errorf("Content[1]: Expected 'img123', got '%s'", ic.Data)
-				}
-
-				// Verify second text
-				tc2, ok := pm.Content[2].(TextContent)
-				if !ok {
-					t.Errorf("Content[2]: Expected TextContent, got %T", pm.Content[2])
-				} else if tc2.Text != "And some audio:" {
-					t.Errorf("Content[2]: Expected 'And some audio:', got '%s'", tc2.Text)
-				}
-
-				// Verify audio
-				ac, ok := pm.Content[3].(AudioContent)
-				if !ok {
-					t.Errorf("Content[3]: Expected AudioContent, got %T", pm.Content[3])
-				} else if ac.Data != "audio456" {
-					t.Errorf("Content[3]: Expected 'audio456', got '%s'", ac.Data)
-				}
-			},
+			verify:  verifyMixedContent,
 		},
 		{
 			name: "empty content array",
@@ -419,14 +459,7 @@ func TestPromptMessageUnmarshalJSON(t *testing.T) {
 				"content": []
 			}`,
 			wantErr: false,
-			verify: func(t *testing.T, pm *PromptMessage) {
-				if pm.Role != "user" {
-					t.Errorf("Expected role 'user', got '%s'", pm.Role)
-				}
-				if len(pm.Content) != 0 {
-					t.Errorf("Expected 0 content items, got %d", len(pm.Content))
-				}
-			},
+			verify:  verifyEmptyContent,
 		},
 		{
 			name: "unknown content type - fallback to text",
@@ -437,18 +470,7 @@ func TestPromptMessageUnmarshalJSON(t *testing.T) {
 				]
 			}`,
 			wantErr: false,
-			verify: func(t *testing.T, pm *PromptMessage) {
-				if len(pm.Content) != 1 {
-					t.Fatalf("Expected 1 content item, got %d", len(pm.Content))
-				}
-				tc, ok := pm.Content[0].(TextContent)
-				if !ok {
-					t.Fatalf("Expected TextContent fallback, got %T", pm.Content[0])
-				}
-				if tc.Type != "unknown_type" {
-					t.Errorf("Expected type 'unknown_type', got '%s'", tc.Type)
-				}
-			},
+			verify:  verifyUnknownTypeFallback,
 		},
 		{
 			name:     "invalid json",
@@ -458,15 +480,8 @@ func TestPromptMessageUnmarshalJSON(t *testing.T) {
 		{
 			name:     "missing role field",
 			jsonData: `{"content": [{"type": "text", "text": "hello"}]}`,
-			wantErr:  false, // JSON will unmarshal with empty role
-			verify: func(t *testing.T, pm *PromptMessage) {
-				if pm.Role != "" {
-					t.Errorf("Expected empty role, got '%s'", pm.Role)
-				}
-				if len(pm.Content) != 1 {
-					t.Fatalf("Expected 1 content item, got %d", len(pm.Content))
-				}
-			},
+			wantErr:  false,
+			verify:   verifyMissingRole,
 		},
 	}
 
