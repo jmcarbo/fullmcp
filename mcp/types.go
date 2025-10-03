@@ -86,7 +86,7 @@ type Tool struct {
 type Resource struct {
 	URI         string                 `json:"uri"`
 	Name        string                 `json:"name"`
-	Title       string                 `json:"title,omitempty"`       // Human-readable title (2025-06-18)
+	Title       string                 `json:"title,omitempty"` // Human-readable title (2025-06-18)
 	Description string                 `json:"description,omitempty"`
 	MimeType    string                 `json:"mimeType,omitempty"`
 	Meta        map[string]interface{} `json:"_meta,omitempty"` // Metadata (2025-06-18)
@@ -96,7 +96,7 @@ type Resource struct {
 type ResourceTemplate struct {
 	URITemplate string                 `json:"uriTemplate"`
 	Name        string                 `json:"name"`
-	Title       string                 `json:"title,omitempty"`       // Human-readable title (2025-06-18)
+	Title       string                 `json:"title,omitempty"` // Human-readable title (2025-06-18)
 	Description string                 `json:"description,omitempty"`
 	MimeType    string                 `json:"mimeType,omitempty"`
 	Meta        map[string]interface{} `json:"_meta,omitempty"` // Metadata (2025-06-18)
@@ -105,7 +105,7 @@ type ResourceTemplate struct {
 // Prompt represents an MCP prompt
 type Prompt struct {
 	Name        string                 `json:"name"`
-	Title       string                 `json:"title,omitempty"`       // Human-readable title (2025-06-18)
+	Title       string                 `json:"title,omitempty"` // Human-readable title (2025-06-18)
 	Description string                 `json:"description,omitempty"`
 	Arguments   []PromptArgument       `json:"arguments,omitempty"`
 	Meta        map[string]interface{} `json:"_meta,omitempty"` // Metadata (2025-06-18)
@@ -236,7 +236,7 @@ type CompletionsCapability struct {
 
 // ClientCapabilities represents client capabilities
 type ClientCapabilities struct {
-	Roots       *RootsCapability       `json:"roots,omitempty"`       // 2025-06-18
+	Roots       *RootsCapability       `json:"roots,omitempty"` // 2025-06-18
 	Sampling    *SamplingCapability    `json:"sampling,omitempty"`
 	Elicitation *ElicitationCapability `json:"elicitation,omitempty"` // 2025-06-18
 }
@@ -253,14 +253,14 @@ type ElicitationCapability struct {
 
 // ElicitationRequest represents an elicitation request from server (2025-06-18)
 type ElicitationRequest struct {
-	Schema      map[string]interface{} `json:"schema"`      // JSON Schema for requested data
+	Schema      map[string]interface{} `json:"schema"`                // JSON Schema for requested data
 	Description string                 `json:"description,omitempty"` // What the data is for
 }
 
 // ElicitationResponse represents user's response to elicitation (2025-06-18)
 type ElicitationResponse struct {
-	Action string                 `json:"action"` // "accept", "decline", or "cancel"
-	Data   map[string]interface{} `json:"data,omitempty"`   // User-provided data (if accepted)
+	Action string                 `json:"action"`         // "accept", "decline", or "cancel"
+	Data   map[string]interface{} `json:"data,omitempty"` // User-provided data (if accepted)
 }
 
 // Message represents a JSON-RPC 2.0 message envelope

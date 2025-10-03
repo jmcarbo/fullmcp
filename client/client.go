@@ -23,11 +23,11 @@ type Client struct {
 	nextID  atomic.Int64
 	pending map[int64]chan *mcp.Message
 
-	capabilities     *mcp.ServerCapabilities
-	samplingHandler  SamplingHandler  // Handler for server-initiated sampling requests
-	rootsProvider    RootsProvider    // Provider for client roots
-	logHandler       LogHandler       // Handler for log message notifications
-	progressHandler  ProgressHandler  // Handler for progress notifications
+	capabilities    *mcp.ServerCapabilities
+	samplingHandler SamplingHandler // Handler for server-initiated sampling requests
+	rootsProvider   RootsProvider   // Provider for client roots
+	logHandler      LogHandler      // Handler for log message notifications
+	progressHandler ProgressHandler // Handler for progress notifications
 }
 
 // Option configures a Client

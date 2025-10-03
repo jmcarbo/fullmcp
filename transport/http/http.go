@@ -80,7 +80,7 @@ type httpConn struct {
 	ctx       context.Context
 	buf       bytes.Buffer
 	mu        sync.Mutex
-	writeMu   sync.Mutex  // Serializes concurrent Write operations
+	writeMu   sync.Mutex // Serializes concurrent Write operations
 	dataCond  *sync.Cond
 	hasData   bool
 	closed    bool

@@ -57,9 +57,9 @@ func main() {
 	fmt.Println("Automatic schema generation from Go types:")
 	fmt.Print(`
   type AnalysisResult struct {
-      Complexity int      `+"`json:\"complexity\"`"+`
-      Issues     []string `+"`json:\"issues\"`"+`
-      Score      float64  `+"`json:\"score\"`"+`
+      Complexity int      ` + "`json:\"complexity\"`" + `
+      Issues     []string ` + "`json:\"issues\"`" + `
+      Score      float64  ` + "`json:\"score\"`" + `
   }
 
   tool := builder.NewTool("analyze_code").
@@ -321,9 +321,9 @@ func main() {
 	fmt.Println("Tool with output schema:")
 	fmt.Print(`
   type SearchResult struct {
-      Query   string   `+"`json:\"query\"`"+`
-      Results []string `+"`json:\"results\"`"+`
-      Count   int      `+"`json:\"count\"`"+`
+      Query   string   ` + "`json:\"query\"`" + `
+      Results []string ` + "`json:\"results\"`" + `
+      Count   int      ` + "`json:\"count\"`" + `
   }
 
   tool := builder.NewTool("search").

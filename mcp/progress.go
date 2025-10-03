@@ -6,9 +6,9 @@ type ProgressToken interface{}
 
 // ProgressNotification represents a progress update notification
 type ProgressNotification struct {
-	ProgressToken ProgressToken `json:"progressToken"`   // Unique token for this operation
-	Progress      float64       `json:"progress"`        // Current progress value
-	Total         *float64      `json:"total,omitempty"` // Optional total value
+	ProgressToken ProgressToken `json:"progressToken"`     // Unique token for this operation
+	Progress      float64       `json:"progress"`          // Current progress value
+	Total         *float64      `json:"total,omitempty"`   // Optional total value
 	Message       string        `json:"message,omitempty"` // Optional descriptive status (2025-03-26)
 }
 

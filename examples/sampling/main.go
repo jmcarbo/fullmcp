@@ -111,7 +111,7 @@ func main() {
 
 	prefs := server.NewModelPreferences("claude-3-opus", "gpt-4-turbo").
 		WithIntelligencePriority(0.9). // Prefer more intelligent models
-		WithSpeedPriority(0.3)          // Speed is less important
+		WithSpeedPriority(0.3)         // Speed is less important
 
 	req := server.NewSamplingRequest().
 		WithModelPreferences(prefs).

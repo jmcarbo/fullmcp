@@ -1,7 +1,7 @@
-.PHONY: test build lint clean coverage examples all test-all test-verbose mcpclient build-examples
+.PHONY: test build lint clean coverage examples all test-all test-verbose mcpclient build-examples format
 
 # Default target
-all: lint test build
+all: format lint test build
 
 # Run tests (excluding examples which have no test files)
 test:
@@ -60,8 +60,13 @@ mcpclient:
 	@go build -o bin/mcpcli ./cmd/mcpcli
 	@echo "mcpcli built successfully in bin/mcpcli"
 
+# Format code with gofumpt
+format:
+	@echo "Formatting code with gofumpt..."
+	@gofumpt -l -w .
+
 # Run linter
-lint:
+lint: format
 	@echo "Running linter..."
 	@golangci-lint run ./...
 

@@ -21,13 +21,13 @@ import (
 
 // Provider implements OAuth 2.1 authentication with mandatory PKCE
 type Provider struct {
-	config           *oauth2.Config
-	userInfoURL      string
-	emailKey         string
-	subjectKey       string
-	verifyEmail      bool
-	scopeMapping     map[string][]string
-	pkceVerifiers    map[string]string // state -> code_verifier
+	config            *oauth2.Config
+	userInfoURL       string
+	emailKey          string
+	subjectKey        string
+	verifyEmail       bool
+	scopeMapping      map[string][]string
+	pkceVerifiers     map[string]string // state -> code_verifier
 	strictRedirectURI bool
 }
 
@@ -381,13 +381,13 @@ func (p *Provider) HandleCallback() http.HandlerFunc {
 
 // Features documents the OAuth 2.1 compliance features
 type Features struct {
-	MandatoryPKCE          bool   // PKCE required for all clients
-	StrictRedirectURI      bool   // Exact string matching for redirect URIs
-	ImplicitGrantRemoved   bool   // Implicit flow not supported
-	PasswordGrantRemoved   bool   // Resource Owner Password Credentials not supported
-	CodeChallengeMethod    string // "S256" recommended
-	MinimumVerifierLength  int    // 43 characters
-	MaximumVerifierLength  int    // 128 characters
+	MandatoryPKCE         bool   // PKCE required for all clients
+	StrictRedirectURI     bool   // Exact string matching for redirect URIs
+	ImplicitGrantRemoved  bool   // Implicit flow not supported
+	PasswordGrantRemoved  bool   // Resource Owner Password Credentials not supported
+	CodeChallengeMethod   string // "S256" recommended
+	MinimumVerifierLength int    // 43 characters
+	MaximumVerifierLength int    // 128 characters
 }
 
 // GetOAuth21Features returns the OAuth 2.1 compliance features

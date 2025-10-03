@@ -13,14 +13,14 @@ import (
 
 // Transport implements WebSocket transport for MCP
 type Transport struct {
-	url      string
-	dialer   *websocket.Dialer
-	headers  http.Header
-	conn     *websocket.Conn
-	connMu   sync.RWMutex
-	readBuf  []byte
-	readMu   sync.Mutex
-	writeMu  sync.Mutex
+	url     string
+	dialer  *websocket.Dialer
+	headers http.Header
+	conn    *websocket.Conn
+	connMu  sync.RWMutex
+	readBuf []byte
+	readMu  sync.Mutex
+	writeMu sync.Mutex
 }
 
 // Option configures the WebSocket transport

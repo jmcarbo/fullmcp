@@ -20,14 +20,14 @@ type Server struct {
 	resources *ResourceManager
 	prompts   *PromptManager
 
-	middleware    []Middleware
-	lifespan      LifespanFunc
-	sampling      *SamplingCapability
-	rootsHandler  RootsHandler
-	logging       *LoggingManager
-	progress      *ProgressTracker
-	cancellation  *CancellationManager
-	completion    *CompletionManager
+	middleware   []Middleware
+	lifespan     LifespanFunc
+	sampling     *SamplingCapability
+	rootsHandler RootsHandler
+	logging      *LoggingManager
+	progress     *ProgressTracker
+	cancellation *CancellationManager
+	completion   *CompletionManager
 }
 
 // Option configures a Server
@@ -96,7 +96,6 @@ func (s *Server) AddResourceTemplate(handler *ResourceTemplateHandler) error {
 func (s *Server) AddPrompt(handler *PromptHandler) error {
 	return s.prompts.Register(handler)
 }
-
 
 // Run starts the server with stdio transport
 func (s *Server) Run(ctx context.Context) error {

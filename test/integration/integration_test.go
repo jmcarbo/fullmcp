@@ -84,7 +84,8 @@ func TestIntegration_ToolWorkflow(t *testing.T) {
 		Handler(func(_ context.Context, args struct {
 			A int `json:"a"`
 			B int `json:"b"`
-		}) (int, error) {
+		},
+		) (int, error) {
 			return args.A + args.B, nil
 		}).
 		Build()
@@ -94,7 +95,8 @@ func TestIntegration_ToolWorkflow(t *testing.T) {
 		Handler(func(_ context.Context, args struct {
 			A int `json:"a"`
 			B int `json:"b"`
-		}) (int, error) {
+		},
+		) (int, error) {
 			return args.A * args.B, nil
 		}).
 		Build()
@@ -302,7 +304,8 @@ func TestIntegration_ConcurrentClients(t *testing.T) {
 		Description("Return counter value").
 		Handler(func(_ context.Context, args struct {
 			Value int `json:"value"`
-		}) (int, error) {
+		},
+		) (int, error) {
 			return args.Value + 1, nil
 		}).
 		Build()
@@ -425,7 +428,8 @@ func TestIntegration_ComplexWorkflow(t *testing.T) {
 			Op string `json:"op"`
 			A  int    `json:"a"`
 			B  int    `json:"b"`
-		}) (int, error) {
+		},
+		) (int, error) {
 			switch args.Op {
 			case "add":
 				return args.A + args.B, nil

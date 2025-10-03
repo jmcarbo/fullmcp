@@ -20,10 +20,10 @@ type SimpleTool struct {
 }
 
 type ComplexTool struct {
-	Name    string                 `json:"name" jsonschema:"required,description=Name field"`
-	Age     int                    `json:"age" jsonschema:"required,description=Age field"`
-	Email   string                 `json:"email" jsonschema:"description=Email field"`
-	Tags    []string               `json:"tags" jsonschema:"description=Tags"`
+	Name     string                 `json:"name" jsonschema:"required,description=Name field"`
+	Age      int                    `json:"age" jsonschema:"required,description=Age field"`
+	Email    string                 `json:"email" jsonschema:"description=Email field"`
+	Tags     []string               `json:"tags" jsonschema:"description=Tags"`
 	Metadata map[string]interface{} `json:"metadata" jsonschema:"description=Metadata"`
 }
 

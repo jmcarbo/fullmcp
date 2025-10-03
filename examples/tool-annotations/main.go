@@ -80,7 +80,8 @@ func main() {
 		ReadOnly(). // Mark as read-only
 		Handler(func(_ context.Context, args struct {
 			Path string `json:"path"`
-		}) (string, error) {
+		},
+		) (string, error) {
 			data, err := os.ReadFile(args.Path)
 			if err != nil {
 				return "", err
@@ -111,7 +112,8 @@ func main() {
 		Idempotent().  // Can retry safely
 		Handler(func(_ context.Context, args struct {
 			Path string `json:"path"`
-		}) (string, error) {
+		},
+		) (string, error) {
 			if err := os.Remove(args.Path); err != nil {
 				return "", err
 			}
@@ -142,8 +144,9 @@ func main() {
 		Idempotent(). // Safe to retry
 		Handler(func(_ context.Context, args struct {
 			Path string `json:"path"`
-		}) (string, error) {
-			if err := os.MkdirAll(args.Path, 0755); err != nil {
+		},
+		) (string, error) {
+			if err := os.MkdirAll(args.Path, 0o755); err != nil {
 				return "", err
 			}
 			return "Directory created", nil
@@ -172,7 +175,8 @@ func main() {
 		ReadOnly().  // Doesn't modify local state
 		Handler(func(_ context.Context, args struct {
 			City string `json:"city"`
-		}) (string, error) {
+		},
+		) (string, error) {
 			// Simulate API call
 			return fmt.Sprintf("Weather for %s: Sunny, 72°F", args.City), nil
 		}).
@@ -202,7 +206,8 @@ func main() {
 		OpenWorld().   // Network operations
 		Handler(func(_ context.Context, args struct {
 			Version string `json:"version"`
-		}) (string, error) {
+		},
+		) (string, error) {
 			// Simulate deployment
 			return fmt.Sprintf("Deployed version %s", args.Version), nil
 		}).
