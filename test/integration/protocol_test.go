@@ -32,7 +32,8 @@ func createTestServer(t *testing.T) *server.Server {
 		Handler(func(_ context.Context, input struct {
 			A float64 `json:"a"`
 			B float64 `json:"b"`
-		}) (float64, error) {
+		},
+		) (float64, error) {
 			return input.A + input.B, nil
 		}).
 		Build()

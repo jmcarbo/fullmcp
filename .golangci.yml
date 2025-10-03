@@ -7,6 +7,7 @@ linters:
     - ineffassign
     - unused
     - revive
+    - gofumpt
   disable:
     - staticcheck  # Disabled: QF1008 warnings are low-priority style suggestions
 

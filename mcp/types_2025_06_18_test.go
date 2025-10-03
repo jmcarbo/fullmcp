@@ -192,7 +192,7 @@ func TestClientCapabilities(t *testing.T) {
 		Roots: &RootsCapability{
 			ListChanged: true,
 		},
-		Sampling: &SamplingCapability{},
+		Sampling:    &SamplingCapability{},
 		Elicitation: &ElicitationCapability{},
 	}
 

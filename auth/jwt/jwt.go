@@ -115,7 +115,6 @@ func (p *Provider) ValidateToken(_ context.Context, tokenString string) (auth.Cl
 		}
 		return p.signingKey, nil
 	})
-
 	if err != nil {
 		return auth.Claims{}, fmt.Errorf("failed to parse token: %w", err)
 	}

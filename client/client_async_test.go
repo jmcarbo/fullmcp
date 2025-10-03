@@ -14,25 +14,25 @@ import (
 
 // AsyncMockServer simulates a server for async client testing
 type AsyncMockServer struct {
-	t              *testing.T
+	t               *testing.T
 	clientTransport io.ReadWriteCloser
 	serverTransport io.ReadWriteCloser
-	reader         *jsonrpc.MessageReader
-	writer         *jsonrpc.MessageWriter
-	stop           chan struct{}
-	wg             sync.WaitGroup
+	reader          *jsonrpc.MessageReader
+	writer          *jsonrpc.MessageWriter
+	stop            chan struct{}
+	wg              sync.WaitGroup
 }
 
 func NewAsyncMockServer(t *testing.T) (*AsyncMockServer, io.ReadWriteCloser) {
 	clientTransport, serverTransport := testutil.NewPipeTransport()
 
 	return &AsyncMockServer{
-		t:              t,
+		t:               t,
 		clientTransport: clientTransport,
 		serverTransport: serverTransport,
-		reader:         jsonrpc.NewMessageReader(serverTransport),
-		writer:         jsonrpc.NewMessageWriter(serverTransport),
-		stop:           make(chan struct{}),
+		reader:          jsonrpc.NewMessageReader(serverTransport),
+		writer:          jsonrpc.NewMessageWriter(serverTransport),
+		stop:            make(chan struct{}),
 	}, clientTransport
 }
 

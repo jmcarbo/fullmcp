@@ -20,7 +20,6 @@ func TestToolBuilder_OutputSchema(t *testing.T) {
 		}).
 		OutputSchema(schema).
 		Build()
-
 	if err != nil {
 		t.Fatalf("Build failed: %v", err)
 	}
@@ -48,7 +47,6 @@ func TestToolBuilder_OutputSchemaFromType(t *testing.T) {
 		}).
 		OutputSchemaFromType(Result{}).
 		Build()
-
 	if err != nil {
 		t.Fatalf("Build failed: %v", err)
 	}
@@ -98,7 +96,6 @@ func TestToolBuilder_OutputSchemaFromType_Nested(t *testing.T) {
 		}).
 		OutputSchemaFromType(Person{}).
 		Build()
-
 	if err != nil {
 		t.Fatalf("Build failed: %v", err)
 	}
@@ -121,7 +118,7 @@ func TestToolBuilder_OutputSchemaFromType_Nested(t *testing.T) {
 // Test that OutputSchema is included in tool listing
 func TestToolBuilder_OutputSchemaInListing(t *testing.T) {
 	schema := map[string]interface{}{
-		"type": "number",
+		"type":    "number",
 		"minimum": 0,
 		"maximum": 100,
 	}
@@ -133,7 +130,6 @@ func TestToolBuilder_OutputSchemaInListing(t *testing.T) {
 		}).
 		OutputSchema(schema).
 		Build()
-
 	if err != nil {
 		t.Fatalf("Build failed: %v", err)
 	}
@@ -169,7 +165,6 @@ func TestToolBuilder_OutputSchemaFromType_Array(t *testing.T) {
 		}).
 		OutputSchemaFromType([]Item{}).
 		Build()
-
 	if err != nil {
 		t.Fatalf("Build failed: %v", err)
 	}
@@ -206,7 +201,6 @@ func TestToolBuilder_OutputSchemaFromType_Primitive(t *testing.T) {
 				}).
 				OutputSchemaFromType(tt.value).
 				Build()
-
 			if err != nil {
 				t.Fatalf("Build failed: %v", err)
 			}
@@ -238,7 +232,6 @@ func TestToolBuilder_TitleAndOutputSchema(t *testing.T) {
 		OutputSchemaFromType(Result{}).
 		ReadOnly().
 		Build()
-
 	if err != nil {
 		t.Fatalf("Build failed: %v", err)
 	}

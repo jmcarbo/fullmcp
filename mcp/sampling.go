@@ -3,8 +3,8 @@ package mcp
 
 // SamplingMessage represents a message in a sampling request
 type SamplingMessage struct {
-	Role    string          `json:"role"`              // "user" or "assistant"
-	Content SamplingContent `json:"content"`           // Message content
+	Role    string          `json:"role"`    // "user" or "assistant"
+	Content SamplingContent `json:"content"` // Message content
 }
 
 // SamplingContent represents the content of a sampling message
@@ -16,7 +16,7 @@ type SamplingContent struct {
 
 // ModelPreferences specifies preferences for model selection
 type ModelPreferences struct {
-	Hints               []ModelHint `json:"hints,omitempty"`               // Suggested models
+	Hints                []ModelHint `json:"hints,omitempty"`                // Suggested models
 	IntelligencePriority *float64    `json:"intelligencePriority,omitempty"` // 0-1, higher = prefer more capable models
 	SpeedPriority        *float64    `json:"speedPriority,omitempty"`        // 0-1, higher = prefer faster models
 }
@@ -47,8 +47,8 @@ type CreateMessageResult struct {
 
 // Common stop reasons
 const (
-	StopReasonEndTurn       = "endTurn"       // Natural end of model's turn
-	StopReasonStopSequence  = "stopSequence"  // Hit a stop sequence
-	StopReasonMaxTokens     = "maxTokens"     // Reached max tokens limit
-	StopReasonError         = "error"         // Error occurred
+	StopReasonEndTurn      = "endTurn"      // Natural end of model's turn
+	StopReasonStopSequence = "stopSequence" // Hit a stop sequence
+	StopReasonMaxTokens    = "maxTokens"    // Reached max tokens limit
+	StopReasonError        = "error"        // Error occurred
 )

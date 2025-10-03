@@ -192,7 +192,6 @@ func (t *Transport) post(data []byte) ([]byte, error) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-
 	// Check for session ID in response (during initialization)
 	if sessionID := resp.Header.Get("Mcp-Session-Id"); sessionID != "" && t.sessionID == "" {
 		t.mu.Lock()

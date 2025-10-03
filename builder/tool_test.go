@@ -238,7 +238,6 @@ func TestToolBuilder_Chaining(t *testing.T) {
 			return "result", nil
 		}).
 		Build()
-
 	if err != nil {
 		t.Fatalf("failed to build tool: %v", err)
 	}

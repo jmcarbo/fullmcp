@@ -326,7 +326,6 @@ func TestCreateToken(t *testing.T) {
 		[]string{"admin", "write"},
 		map[string]interface{}{"org": "acme"},
 	)
-
 	if err != nil {
 		t.Fatalf("failed to create token: %v", err)
 	}
