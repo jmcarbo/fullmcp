@@ -50,10 +50,8 @@ func WithServerOptions(serverOpts ...server.Option) Option {
 	}
 }
 
-// syncFromBackend fetches all tools, resources, and prompts from the backend
-// and creates proxy handlers for them
-func (ps *Server) syncFromBackend(ctx context.Context) error {
-	// Sync tools
+// syncTools fetches and registers all tools from the backend
+func (ps *Server) syncTools(ctx context.Context) error {
 	tools, err := ps.backend.ListTools(ctx)
 	if err != nil {
 		return err
@@ -73,8 +71,11 @@ func (ps *Server) syncFromBackend(ctx context.Context) error {
 			return err
 		}
 	}
+	return nil
+}
 
-	// Sync resources
+// syncResources fetches and registers all resources from the backend
+func (ps *Server) syncResources(ctx context.Context) error {
 	resources, err := ps.backend.ListResources(ctx)
 	if err != nil {
 		return err
@@ -93,11 +94,9 @@ func (ps *Server) syncFromBackend(ctx context.Context) error {
 					return nil, err
 				}
 
-				// Return first content item as bytes
 				if len(contents) > 0 {
 					return contentToBytes(contents[0]), nil
 				}
-
 				return nil, nil
 			},
 		}
@@ -105,8 +104,11 @@ func (ps *Server) syncFromBackend(ctx context.Context) error {
 			return err
 		}
 	}
+	return nil
+}
 
-	// Sync prompts
+// syncPrompts fetches and registers all prompts from the backend
+func (ps *Server) syncPrompts(ctx context.Context) error {
 	prompts, err := ps.backend.ListPrompts(ctx)
 	if err != nil {
 		return err
@@ -126,8 +128,19 @@ func (ps *Server) syncFromBackend(ctx context.Context) error {
 			return err
 		}
 	}
-
 	return nil
+}
+
+// syncFromBackend fetches all tools, resources, and prompts from the backend
+// and creates proxy handlers for them
+func (ps *Server) syncFromBackend(ctx context.Context) error {
+	if err := ps.syncTools(ctx); err != nil {
+		return err
+	}
+	if err := ps.syncResources(ctx); err != nil {
+		return err
+	}
+	return ps.syncPrompts(ctx)
 }
 
 // contentToBytes converts a content item to bytes

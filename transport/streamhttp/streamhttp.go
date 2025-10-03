@@ -224,62 +224,34 @@ type streamConn struct {
 	bufferCond *sync.Cond
 }
 
-// Read reads from the SSE stream
-func (c *streamConn) Read(p []byte) (int, error) {
-	// Always check buffer first (for POST responses)
+// tryReadBuffer attempts to read from the buffer if it has data
+func (c *streamConn) tryReadBuffer(p []byte) (n int, hasData bool, err error) {
 	c.mu.Lock()
-	if c.readBuf.Len() > 0 {
-		n, err := c.readBuf.Read(p)
-		c.mu.Unlock()
-		return n, err
-	}
-	c.mu.Unlock()
+	defer c.mu.Unlock()
 
-	// Wait for SSE stream to be ready (non-blocking after first time)
+	if c.readBuf.Len() > 0 {
+		n, err = c.readBuf.Read(p)
+		return n, true, err
+	}
+	return 0, false, nil
+}
+
+// waitForSSEReady waits for the SSE stream to be ready
+func (c *streamConn) waitForSSEReady(p []byte) (n int, done bool, err error) {
 	select {
 	case <-c.transport.sseReady:
-		// SSE is ready, continue
+		return 0, false, nil
 	default:
-		// SSE not ready yet, check buffer again in case Write() added data
-		c.mu.Lock()
-		if c.readBuf.Len() > 0 {
-			n, err := c.readBuf.Read(p)
-			c.mu.Unlock()
-			return n, err
+		if n, hasData, err := c.tryReadBuffer(p); hasData {
+			return n, true, err
 		}
-		c.mu.Unlock()
-
-		// Now wait for SSE to be ready
 		<-c.transport.sseReady
+		return 0, false, nil
 	}
+}
 
-	// After SSE is ready, check buffer again (Write() may have added POST response)
-	c.mu.Lock()
-	if c.readBuf.Len() > 0 {
-		n, err := c.readBuf.Read(p)
-		c.mu.Unlock()
-		return n, err
-	}
-	c.mu.Unlock()
-
-	c.transport.mu.Lock()
-	reader := c.transport.sseReader
-	c.transport.mu.Unlock()
-
-	if reader == nil {
-		// SSE stream failed to connect, but POST responses might still work
-		// Check buffer one more time
-		c.mu.Lock()
-		if c.readBuf.Len() > 0 {
-			n, err := c.readBuf.Read(p)
-			c.mu.Unlock()
-			return n, err
-		}
-		c.mu.Unlock()
-		return 0, nil
-	}
-
-	// Use a goroutine to read from SSE, so we can wait on both SSE and buffer updates
+// readFromSSEStream reads data from the SSE stream
+func (c *streamConn) readFromSSEStream(p []byte, reader *sseReader) (int, error) {
 	sseDataChan := make(chan []byte, 1)
 	sseErrChan := make(chan error, 1)
 
@@ -292,25 +264,18 @@ func (c *streamConn) Read(p []byte) (int, error) {
 		sseDataChan <- data
 	}()
 
-	// Wait for either SSE data or buffer notification
 	c.mu.Lock()
 	for c.readBuf.Len() == 0 {
-		// Release lock and wait for signal with timeout
-		// Using a short timeout to check SSE channel
-
-		// Check SSE channels without blocking
 		select {
 		case data := <-sseDataChan:
 			if data != nil {
 				c.readBuf.Write(data)
 				c.readBuf.WriteByte('\n')
 			}
-			// Buffer now has data, break loop
 		case err := <-sseErrChan:
 			c.mu.Unlock()
 			return 0, err
 		default:
-			// No SSE data yet, wait on condition for buffer updates
 			c.bufferCond.Wait()
 		}
 	}
@@ -318,6 +283,34 @@ func (c *streamConn) Read(p []byte) (int, error) {
 	n, err := c.readBuf.Read(p)
 	c.mu.Unlock()
 	return n, err
+}
+
+// Read reads from the SSE stream
+func (c *streamConn) Read(p []byte) (int, error) {
+	if n, hasData, err := c.tryReadBuffer(p); hasData {
+		return n, err
+	}
+
+	if n, done, err := c.waitForSSEReady(p); done {
+		return n, err
+	}
+
+	if n, hasData, err := c.tryReadBuffer(p); hasData {
+		return n, err
+	}
+
+	c.transport.mu.Lock()
+	reader := c.transport.sseReader
+	c.transport.mu.Unlock()
+
+	if reader == nil {
+		if n, hasData, err := c.tryReadBuffer(p); hasData {
+			return n, err
+		}
+		return 0, nil
+	}
+
+	return c.readFromSSEStream(p, reader)
 }
 
 // Write sends a POST request with the data
@@ -353,6 +346,59 @@ type sseReader struct {
 	mu        sync.Mutex
 }
 
+// parseSSEField parses a SSE field:value line
+func parseSSEField(line string) (field, value string, ok bool) {
+	if len(line) == 0 || line[0] == ':' {
+		return "", "", false
+	}
+
+	colonIdx := 0
+	for i, ch := range line {
+		if ch == ':' {
+			colonIdx = i
+			break
+		}
+	}
+
+	if colonIdx == 0 {
+		return "", "", false
+	}
+
+	field = line[:colonIdx]
+	if colonIdx+1 < len(line) {
+		value = line[colonIdx+1:]
+		if len(value) > 0 && value[0] == ' ' {
+			value = value[1:]
+		}
+	}
+	return field, value, true
+}
+
+// updateEventID updates the transport's last event ID if needed
+func (r *sseReader) updateEventID(eventID string) {
+	if eventID != "" {
+		r.transport.eventIDLock.Lock()
+		r.transport.lastEventID = eventID
+		r.transport.eventIDLock.Unlock()
+	}
+}
+
+// processSSELine processes a single SSE line and updates data/eventID
+func processSSELine(line string, data *[]byte, eventID *string) {
+	field, value, ok := parseSSEField(line)
+	if !ok {
+		return
+	}
+
+	switch field {
+	case "data":
+		*data = append(*data, []byte(value)...)
+		*data = append(*data, '\n')
+	case "id":
+		*eventID = value
+	}
+}
+
 // ReadEvent reads the next SSE event
 func (r *sseReader) ReadEvent() ([]byte, error) {
 	r.mu.Lock()
@@ -364,60 +410,15 @@ func (r *sseReader) ReadEvent() ([]byte, error) {
 	for r.scanner.Scan() {
 		line := r.scanner.Text()
 
-		// Empty line signals end of event
 		if line == "" {
 			if len(data) > 0 {
-				// Update last event ID if present
-				if eventID != "" {
-					r.transport.eventIDLock.Lock()
-					r.transport.lastEventID = eventID
-					r.transport.eventIDLock.Unlock()
-				}
+				r.updateEventID(eventID)
 				return data, nil
 			}
 			continue
 		}
 
-		// Parse SSE field
-		if len(line) > 0 && line[0] == ':' {
-			// Comment, ignore
-			continue
-		}
-
-		// Parse field:value
-		colonIdx := 0
-		for i, ch := range line {
-			if ch == ':' {
-				colonIdx = i
-				break
-			}
-		}
-
-		if colonIdx == 0 {
-			continue
-		}
-
-		field := line[:colonIdx]
-		value := ""
-		if colonIdx+1 < len(line) {
-			value = line[colonIdx+1:]
-			// Remove leading space
-			if len(value) > 0 && value[0] == ' ' {
-				value = value[1:]
-			}
-		}
-
-		switch field {
-		case "data":
-			data = append(data, []byte(value)...)
-			data = append(data, '\n')
-		case "id":
-			eventID = value
-		case "event":
-			// Event type (we can ignore for now)
-		case "retry":
-			// Retry timeout (we can ignore for now)
-		}
+		processSSELine(line, &data, &eventID)
 	}
 
 	if err := r.scanner.Err(); err != nil {

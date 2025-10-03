@@ -124,9 +124,62 @@ type PromptMessage struct {
 	Content []Content `json:"content"`
 }
 
+// unmarshalContentByType unmarshals raw JSON into appropriate Content type
+func unmarshalContentByType(rawContent json.RawMessage, contentType string) (Content, error) {
+	switch contentType {
+	case "text":
+		var tc TextContent
+		if err := json.Unmarshal(rawContent, &tc); err != nil {
+			return nil, err
+		}
+		return tc, nil
+	case "image":
+		var ic ImageContent
+		if err := json.Unmarshal(rawContent, &ic); err != nil {
+			return nil, err
+		}
+		return ic, nil
+	case "audio":
+		var ac AudioContent
+		if err := json.Unmarshal(rawContent, &ac); err != nil {
+			return nil, err
+		}
+		return ac, nil
+	case "resource":
+		return unmarshalResourceContent(rawContent)
+	default:
+		var tc TextContent
+		if err := json.Unmarshal(rawContent, &tc); err != nil {
+			return nil, err
+		}
+		return tc, nil
+	}
+}
+
+// unmarshalResourceContent handles ResourceContent and ResourceLinkContent
+func unmarshalResourceContent(rawContent json.RawMessage) (Content, error) {
+	var check map[string]interface{}
+	if err := json.Unmarshal(rawContent, &check); err != nil {
+		return nil, err
+	}
+
+	if _, hasResource := check["resource"]; hasResource {
+		var rlc ResourceLinkContent
+		if err := json.Unmarshal(rawContent, &rlc); err != nil {
+			return nil, err
+		}
+		return rlc, nil
+	}
+
+	var rc ResourceContent
+	if err := json.Unmarshal(rawContent, &rc); err != nil {
+		return nil, err
+	}
+	return rc, nil
+}
+
 // UnmarshalJSON implements custom JSON unmarshaling for PromptMessage
 func (pm *PromptMessage) UnmarshalJSON(data []byte) error {
-	// Create temporary struct with raw content
 	var temp struct {
 		Role    string            `json:"role"`
 		Content []json.RawMessage `json:"content"`
@@ -139,9 +192,7 @@ func (pm *PromptMessage) UnmarshalJSON(data []byte) error {
 	pm.Role = temp.Role
 	pm.Content = make([]Content, 0, len(temp.Content))
 
-	// Unmarshal each content item based on its type field
 	for _, rawContent := range temp.Content {
-		// First, peek at the type field
 		var typeCheck struct {
 			Type string `json:"type"`
 		}
@@ -149,56 +200,10 @@ func (pm *PromptMessage) UnmarshalJSON(data []byte) error {
 			return err
 		}
 
-		// Create appropriate concrete type based on type field
-		var content Content
-		switch typeCheck.Type {
-		case "text":
-			var tc TextContent
-			if err := json.Unmarshal(rawContent, &tc); err != nil {
-				return err
-			}
-			content = tc
-		case "image":
-			var ic ImageContent
-			if err := json.Unmarshal(rawContent, &ic); err != nil {
-				return err
-			}
-			content = ic
-		case "audio":
-			var ac AudioContent
-			if err := json.Unmarshal(rawContent, &ac); err != nil {
-				return err
-			}
-			content = ac
-		case "resource":
-			// Could be ResourceContent or ResourceLinkContent
-			// Check if it has "resource" field to distinguish
-			var check map[string]interface{}
-			if err := json.Unmarshal(rawContent, &check); err != nil {
-				return err
-			}
-			if _, hasResource := check["resource"]; hasResource {
-				var rlc ResourceLinkContent
-				if err := json.Unmarshal(rawContent, &rlc); err != nil {
-					return err
-				}
-				content = rlc
-			} else {
-				var rc ResourceContent
-				if err := json.Unmarshal(rawContent, &rc); err != nil {
-					return err
-				}
-				content = rc
-			}
-		default:
-			// Unknown type - use TextContent as fallback
-			var tc TextContent
-			if err := json.Unmarshal(rawContent, &tc); err != nil {
-				return err
-			}
-			content = tc
+		content, err := unmarshalContentByType(rawContent, typeCheck.Type)
+		if err != nil {
+			return err
 		}
-
 		pm.Content = append(pm.Content, content)
 	}
 

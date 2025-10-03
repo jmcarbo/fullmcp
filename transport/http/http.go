@@ -112,39 +112,32 @@ func (c *httpConn) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// Write sends an HTTP POST request and stores the response
-func (c *httpConn) Write(p []byte) (int, error) {
-	// Serialize Write operations to prevent concurrent buffer overwrites
-	c.writeMu.Lock()
-	defer c.writeMu.Unlock()
-
+// createHTTPRequest creates an HTTP POST request with headers
+func (c *httpConn) createHTTPRequest(p []byte) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(c.ctx, "POST", c.url, bytes.NewReader(p))
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
-	// Add custom headers
 	for k, v := range c.headers {
 		req.Header.Set(k, v)
 	}
 
-	// Add session ID if we have one
 	c.mu.Lock()
 	sessionID := c.sessionID
 	c.mu.Unlock()
+
 	if sessionID != "" {
 		req.Header.Set("mcp-session-id", sessionID)
 	}
 
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = resp.Body.Close() }()
+	return req, nil
+}
 
-	// Capture session ID from response if present
+// handleHTTPResponse processes the HTTP response and stores data
+func (c *httpConn) handleHTTPResponse(resp *http.Response) error {
 	if respSessionID := resp.Header.Get("mcp-session-id"); respSessionID != "" {
 		c.mu.Lock()
 		c.sessionID = respSessionID
@@ -153,27 +146,47 @@ func (c *httpConn) Write(p []byte) (int, error) {
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		body, _ := io.ReadAll(resp.Body)
-		return 0, fmt.Errorf("HTTP error %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("HTTP error %d: %s", resp.StatusCode, string(body))
 	}
 
-	// Read response into buffer (only if status is 200 OK)
 	if resp.StatusCode == http.StatusOK {
 		c.mu.Lock()
 		c.buf.Reset()
-		_, err = io.Copy(&c.buf, resp.Body)
+		_, err := io.Copy(&c.buf, resp.Body)
 		if err != nil {
 			c.mu.Unlock()
-			return 0, err
+			return err
 		}
 
-		// Signal that data is available
 		c.hasData = true
 		if c.dataCond != nil {
 			c.dataCond.Signal()
 		}
 		c.mu.Unlock()
 	}
-	// For 202 Accepted (notifications), no response body expected
+
+	return nil
+}
+
+// Write sends an HTTP POST request and stores the response
+func (c *httpConn) Write(p []byte) (int, error) {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+
+	req, err := c.createHTTPRequest(p)
+	if err != nil {
+		return 0, err
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if err := c.handleHTTPResponse(resp); err != nil {
+		return 0, err
+	}
 
 	return len(p), nil
 }

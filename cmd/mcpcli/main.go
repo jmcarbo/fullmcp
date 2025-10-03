@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jmcarbo/fullmcp/client"
+	"github.com/jmcarbo/fullmcp/mcp"
 	"github.com/jmcarbo/fullmcp/transport/http"
 	"github.com/jmcarbo/fullmcp/transport/stdio"
 	"github.com/jmcarbo/fullmcp/transport/streamhttp"
@@ -214,6 +215,33 @@ func listResourcesCmd() *cobra.Command {
 	return cmd
 }
 
+func displayPromptArguments(args []mcp.PromptArgument) {
+	if !verbose || len(args) == 0 {
+		return
+	}
+
+	fmt.Println("    Arguments:")
+	for _, arg := range args {
+		req := ""
+		if arg.Required {
+			req = " (required)"
+		}
+		fmt.Printf("      - %s%s: %s\n", arg.Name, req, arg.Description)
+	}
+}
+
+func displayPromptsFormatted(prompts []*mcp.Prompt) {
+	fmt.Printf("Available Prompts (%d):\n\n", len(prompts))
+	for _, prompt := range prompts {
+		fmt.Printf("  • %s\n", prompt.Name)
+		if prompt.Description != "" {
+			fmt.Printf("    %s\n", prompt.Description)
+		}
+		displayPromptArguments(prompt.Arguments)
+		fmt.Println()
+	}
+}
+
 func listPromptsCmd() *cobra.Command {
 	var outputJSON bool
 
@@ -245,24 +273,7 @@ func listPromptsCmd() *cobra.Command {
 				data, _ := json.MarshalIndent(prompts, "", "  ")
 				fmt.Println(string(data))
 			} else {
-				fmt.Printf("Available Prompts (%d):\n\n", len(prompts))
-				for _, prompt := range prompts {
-					fmt.Printf("  • %s\n", prompt.Name)
-					if prompt.Description != "" {
-						fmt.Printf("    %s\n", prompt.Description)
-					}
-					if verbose && len(prompt.Arguments) > 0 {
-						fmt.Println("    Arguments:")
-						for _, arg := range prompt.Arguments {
-							req := ""
-							if arg.Required {
-								req = " (required)"
-							}
-							fmt.Printf("      - %s%s: %s\n", arg.Name, req, arg.Description)
-						}
-					}
-					fmt.Println()
-				}
+				displayPromptsFormatted(prompts)
 			}
 
 			return nil

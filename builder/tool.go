@@ -101,47 +101,46 @@ func (tb *ToolBuilder) OpenWorld() *ToolBuilder {
 	return tb
 }
 
-// Build creates the ToolHandler
-func (tb *ToolBuilder) Build() (*server.ToolHandler, error) {
-	if tb.fn == nil {
-		return nil, fmt.Errorf("handler function is required")
-	}
-
-	fnType := reflect.TypeOf(tb.fn)
+// validateFunctionSignature validates the handler function signature
+func validateFunctionSignature(fnType reflect.Type) error {
 	if fnType.Kind() != reflect.Func {
-		return nil, fmt.Errorf("handler must be a function")
+		return fmt.Errorf("handler must be a function")
 	}
 
-	// Validate signature
 	if fnType.NumIn() < 1 {
-		return nil, fmt.Errorf("handler must accept at least context.Context")
+		return fmt.Errorf("handler must accept at least context.Context")
 	}
 
-	// First arg must be context.Context
 	ctxType := reflect.TypeOf((*context.Context)(nil)).Elem()
 	if !fnType.In(0).Implements(ctxType) {
-		return nil, fmt.Errorf("first argument must be context.Context")
+		return fmt.Errorf("first argument must be context.Context")
 	}
 
-	// Generate JSON schema from input type
-	var schema map[string]interface{}
+	return nil
+}
+
+// generateJSONSchema generates JSON schema from input type
+func generateJSONSchema(fnType reflect.Type) map[string]interface{} {
 	if fnType.NumIn() > 1 {
 		inputType := fnType.In(1)
 		reflector := jsonschema.Reflector{}
 		jsonSchema := reflector.Reflect(reflect.New(inputType).Interface())
 		schemaBytes, _ := json.Marshal(jsonSchema)
+		var schema map[string]interface{}
 		_ = json.Unmarshal(schemaBytes, &schema)
-	} else {
-		schema = map[string]interface{}{
-			"type":       "object",
-			"properties": map[string]interface{}{},
-		}
+		return schema
 	}
 
-	// Create wrapper function
-	handler := func(ctx context.Context, args json.RawMessage) (interface{}, error) {
-		fnValue := reflect.ValueOf(tb.fn)
+	return map[string]interface{}{
+		"type":       "object",
+		"properties": map[string]interface{}{},
+	}
+}
 
+// createHandlerWrapper creates a wrapper function for the tool handler
+func (tb *ToolBuilder) createHandlerWrapper(fnType reflect.Type) func(context.Context, json.RawMessage) (interface{}, error) {
+	return func(ctx context.Context, args json.RawMessage) (interface{}, error) {
+		fnValue := reflect.ValueOf(tb.fn)
 		callArgs := []reflect.Value{reflect.ValueOf(ctx)}
 
 		if fnType.NumIn() > 1 {
@@ -159,7 +158,6 @@ func (tb *ToolBuilder) Build() (*server.ToolHandler, error) {
 
 		results := fnValue.Call(callArgs)
 
-		// Handle return values (result, error)
 		if len(results) == 2 {
 			if !results[1].IsNil() {
 				return nil, results[1].Interface().(error)
@@ -169,6 +167,21 @@ func (tb *ToolBuilder) Build() (*server.ToolHandler, error) {
 
 		return nil, fmt.Errorf("invalid handler signature")
 	}
+}
+
+// Build creates the ToolHandler
+func (tb *ToolBuilder) Build() (*server.ToolHandler, error) {
+	if tb.fn == nil {
+		return nil, fmt.Errorf("handler function is required")
+	}
+
+	fnType := reflect.TypeOf(tb.fn)
+	if err := validateFunctionSignature(fnType); err != nil {
+		return nil, err
+	}
+
+	schema := generateJSONSchema(fnType)
+	handler := tb.createHandlerWrapper(fnType)
 
 	return &server.ToolHandler{
 		Name:            tb.name,

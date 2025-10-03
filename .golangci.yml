@@ -7,6 +7,8 @@ linters:
     - ineffassign
     - unused
     - revive
+    - gocyclo
+    - cyclop
   disable:
     - staticcheck  # Disabled: QF1008 warnings are low-priority style suggestions
 
@@ -21,6 +23,11 @@ linters-settings:
         disabled: false
       - name: package-comments
         disabled: true
+  gocyclo:
+    min-complexity: 15
+  cyclop:
+    max-complexity: 15
+    skip-tests: true
 
 issues:
   exclude-use-default: false
@@ -35,7 +42,7 @@ issues:
         - revive
         - staticcheck
 
-    # Exclude all linter errors from examples
+    # Exclude all linter errors from examples (except cyclomatic complexity)
     - path: examples/
       linters:
         - errcheck
