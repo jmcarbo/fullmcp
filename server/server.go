@@ -290,18 +290,23 @@ func (s *Server) handleResourcesRead(ctx context.Context, msg *mcp.Message) *mcp
 		return s.errorResponse(msg.ID, mcp.InvalidParams, "invalid parameters")
 	}
 
-	data, err := s.resources.Read(ctx, params.URI)
+	resource, err := s.resources.ReadWithMetadata(ctx, params.URI)
 	if err != nil {
 		return s.errorResponse(msg.ID, mcp.InternalError, err.Error())
 	}
 
-	contents := []map[string]interface{}{
-		{
-			"uri":      params.URI,
-			"mimeType": "text/plain",
-			"text":     string(data),
-		},
+	// Build resource content based on MIME type
+	content := map[string]interface{}{
+		"uri":      resource.URI,
+		"mimeType": resource.MimeType,
 	}
+
+	// For text-based MIME types, include as text
+	// For binary types, we'd need to base64 encode (future enhancement)
+	// For now, always include as text for backward compatibility
+	content["text"] = string(resource.Data)
+
+	contents := []map[string]interface{}{content}
 
 	return s.successResponse(msg.ID, map[string]interface{}{
 		"contents": contents,

@@ -1,6 +1,8 @@
-# Typed Content Support in Tools
+# Typed Content Support
 
-As of this update, FullMCP tools can return rich, typed content instead of being limited to plain text responses.
+As of this update, FullMCP supports proper typed content handling across **Tools**, **Resources**, and **Prompts**.
+
+## Tools - Typed Content Support
 
 ## Overview
 
@@ -150,10 +152,83 @@ Existing tools require no changes - they continue to work exactly as before. To 
 2. Return the appropriate content with MIME types
 3. Test with clients that support rich content
 
+## Resources - MIME Type Preservation
+
+Previously, all resources were returned with hardcoded `"text/plain"` MIME type. Now resources preserve their actual MIME types.
+
+### Problem Fixed
+
+```go
+// BEFORE - hardcoded MIME type
+contents := []map[string]interface{}{
+    {
+        "uri":      params.URI,
+        "mimeType": "text/plain",  // ❌ Always text/plain!
+        "text":     string(data),
+    },
+}
+```
+
+### Solution
+
+Resources now use the MIME type specified in their handler:
+
+```go
+srv.AddResource(&server.ResourceHandler{
+    URI:         "config://app.json",
+    Name:        "app-config",
+    Description: "Application configuration",
+    MimeType:    "application/json",  // ✅ Preserved!
+    Reader: func(_ context.Context) ([]byte, error) {
+        return []byte(`{"debug": true}`), nil
+    },
+})
+```
+
+The server now:
+1. Retrieves resource metadata along with data
+2. Returns the actual MIME type from the resource handler
+3. Defaults to "text/plain" if no MIME type is specified
+4. Maintains backward compatibility with the legacy `Read()` method
+
+### New API
+
+```go
+// New method with metadata
+content, err := rm.ReadWithMetadata(ctx, uri)
+// content.Data     []byte
+// content.MimeType string
+// content.URI      string
+
+// Legacy method still works
+data, err := rm.Read(ctx, uri)
+```
+
+## Prompts - Already Correct
+
+Prompts already support typed content correctly through `[]mcp.Content` in `PromptMessage`. No changes needed.
+
+```go
+srv.AddPrompt(&server.PromptHandler{
+    Name: "greeting",
+    Renderer: func(_ context.Context, args map[string]interface{}) ([]*mcp.PromptMessage, error) {
+        return []*mcp.PromptMessage{
+            {
+                Role: "user",
+                Content: []mcp.Content{
+                    mcp.TextContent{Type: "text", Text: "Hello!"},
+                    mcp.ImageContent{Type: "image", Data: base64Data, MimeType: "image/png"},
+                },
+            },
+        }, nil
+    },
+})
+```
+
 ## Benefits
 
 - **Type Safety**: Return exactly what you mean
-- **MIME Type Preservation**: Images, audio, and resources maintain their types
+- **MIME Type Preservation**: Tools, resources, images, and audio maintain their types
 - **Multiple Content Blocks**: Return complex responses
-- **Backward Compatible**: Existing tools continue to work
+- **Backward Compatible**: Existing code continues to work
 - **Better JSON Representation**: Structs/maps are properly JSON-encoded instead of using `fmt.Sprintf`
