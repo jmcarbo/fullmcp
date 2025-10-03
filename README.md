@@ -488,6 +488,8 @@ See [benchmarks](./docs/benchmarks.md) for detailed performance analysis.
 - ✅ Performance benchmarked
 - ✅ Used in production environments
 
+See [IMPLEMENTATION_STATUS.md](./docs/IMPLEMENTATION_STATUS.md) for detailed feature tracking.
+
 ## Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
