@@ -101,3 +101,4 @@ go mod tidy
 - Elicitation: Servers can request structured user input (2025-06-18)
 - Resource metadata: _meta fields for version tracking and audience targeting (2025-06-18)
 - Title fields: Human-friendly display names for resources and prompts (2025-06-18)
+- Commits should follow conventional commit conventions (breaking:, feat:, fix:, etc.)
