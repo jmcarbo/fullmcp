@@ -7,11 +7,13 @@ linters:
     - ineffassign
     - unused
     - revive
-    - gofumpt
   disable:
     - staticcheck  # Disabled: QF1008 warnings are low-priority style suggestions
 
 linters-settings:
+  gofumpt:
+    lang-version: "1.21"
+    extra-rules: true
   revive:
     enable-all-rules: false
     rules:
