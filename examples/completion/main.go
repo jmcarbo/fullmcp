@@ -10,12 +10,7 @@ import (
 	"github.com/jmcarbo/fullmcp/server"
 )
 
-func main() {
-	fmt.Println("MCP Completion Example")
-	fmt.Println("======================")
-	fmt.Println()
-
-	// Example 1: Server with completion support
+func setupServerWithCompletion() *server.Server {
 	fmt.Println("💡 Server with Completion Support")
 	fmt.Println("==================================")
 	fmt.Println()
@@ -23,17 +18,17 @@ func main() {
 	srv := server.New("completion-demo", server.WithCompletion())
 	fmt.Println("✓ Server created with completion support")
 	fmt.Println()
+	return srv
+}
 
-	// Example 2: Register completion handlers
+func registerCompletionHandlers(srv *server.Server) {
 	fmt.Println("📝 Register Completion Handlers")
 	fmt.Println("================================")
 	fmt.Println()
 
-	// Language completion for code_review prompt
 	srv.RegisterPromptCompletion("code_review", func(_ context.Context, _ mcp.CompletionRef, arg mcp.CompletionArgument) ([]string, error) {
 		if arg.Name == "language" {
 			languages := []string{"Go", "Python", "JavaScript", "TypeScript", "Rust", "Java"}
-			// Filter by partial value
 			if arg.Value != "" {
 				var filtered []string
 				for _, lang := range languages {
@@ -50,10 +45,9 @@ func main() {
 
 	fmt.Println("✓ Registered prompt completion for 'code_review'")
 	fmt.Println()
+}
 
-	_ = srv
-
-	// Example 3: Completion request structure
+func showCompletionRequestStructure() {
 	fmt.Println("📋 Completion Request Structure")
 	fmt.Println("================================")
 	fmt.Println()
@@ -294,4 +288,16 @@ func main() {
 	fmt.Println("  - Filter suggestions based on partial input")
 	fmt.Println("  - Return empty array if no handler registered")
 	fmt.Println("  - Provides IDE-like autocomplete experience")
+}
+
+func main() {
+	fmt.Println("MCP Completion Example")
+	fmt.Println("======================")
+	fmt.Println()
+
+	srv := setupServerWithCompletion()
+	registerCompletionHandlers(srv)
+	_ = srv
+
+	showCompletionRequestStructure()
 }

@@ -71,24 +71,31 @@ type sseConn struct {
 	once   sync.Once
 }
 
-// Read reads from the SSE stream
-func (c *sseConn) Read(p []byte) (int, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+// parseSSELine parses a single SSE line and writes to buffer
+// Returns true if the event is complete
+func (c *sseConn) parseSSELine(line []byte) bool {
+	if bytes.HasPrefix(line, []byte("data: ")) {
+		data := bytes.TrimPrefix(line, []byte("data: "))
+		data = bytes.TrimSuffix(data, []byte("\n"))
 
-	// If we have data in buffer, read from it
-	if c.buf.Len() > 0 {
-		return c.buf.Read(p)
-	}
-
-	// If no reader yet, establish SSE connection
-	if c.reader == nil {
-		if err := c.connect(); err != nil {
-			return 0, err
+		if bytes.HasSuffix(data, []byte("\n")) {
+			c.buf.Write(data)
+			return true
 		}
+
+		c.buf.Write(data)
+		return false
 	}
 
-	// Read next SSE event
+	if len(bytes.TrimSpace(line)) == 0 {
+		return c.buf.Len() > 0
+	}
+
+	return false
+}
+
+// readSSEEvent reads until a complete SSE event is available
+func (c *sseConn) readSSEEvent(p []byte) (int, error) {
 	for {
 		select {
 		case <-c.closed:
@@ -101,25 +108,28 @@ func (c *sseConn) Read(p []byte) (int, error) {
 			return 0, err
 		}
 
-		// Parse SSE format: "data: <json>\n\n"
-		if bytes.HasPrefix(line, []byte("data: ")) {
-			data := bytes.TrimPrefix(line, []byte("data: "))
-			data = bytes.TrimSuffix(data, []byte("\n"))
-
-			// Check for end marker
-			if bytes.HasSuffix(data, []byte("\n")) {
-				c.buf.Write(data)
-				return c.buf.Read(p)
-			}
-
-			c.buf.Write(data)
-		} else if len(bytes.TrimSpace(line)) == 0 {
-			// Empty line marks end of event
-			if c.buf.Len() > 0 {
-				return c.buf.Read(p)
-			}
+		if c.parseSSELine(line) {
+			return c.buf.Read(p)
 		}
 	}
+}
+
+// Read reads from the SSE stream
+func (c *sseConn) Read(p []byte) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.buf.Len() > 0 {
+		return c.buf.Read(p)
+	}
+
+	if c.reader == nil {
+		if err := c.connect(); err != nil {
+			return 0, err
+		}
+	}
+
+	return c.readSSEEvent(p)
 }
 
 // Write sends data via POST and reads response via SSE

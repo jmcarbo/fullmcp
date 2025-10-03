@@ -131,42 +131,39 @@ func (s *Server) Serve(ctx context.Context, conn io.ReadWriteCloser) error {
 	}
 }
 
+type messageHandler func(context.Context, *mcp.Message) *mcp.Message
+
+// getMessageRouter returns the method routing map
+func (s *Server) getMessageRouter() map[string]messageHandler {
+	return map[string]messageHandler{
+		"initialize":                       func(_ context.Context, msg *mcp.Message) *mcp.Message { return s.handleInitialize(msg) },
+		"tools/list":                       s.handleToolsList,
+		"tools/call":                       s.handleToolsCall,
+		"resources/list":                   func(_ context.Context, msg *mcp.Message) *mcp.Message { return s.handleResourcesList(msg) },
+		"resources/read":                   s.handleResourcesRead,
+		"resources/templates/list":         func(_ context.Context, msg *mcp.Message) *mcp.Message { return s.handleResourceTemplatesList(msg) },
+		"prompts/list":                     func(_ context.Context, msg *mcp.Message) *mcp.Message { return s.handlePromptsList(msg) },
+		"prompts/get":                      s.handlePromptsGet,
+		"notifications/roots/list_changed": s.handleRootsListChanged,
+		"logging/setLevel":                 s.handleLoggingSetLevel,
+		"notifications/cancelled":          s.handleCancelled,
+		"ping":                             func(_ context.Context, msg *mcp.Message) *mcp.Message { return s.handlePing(msg) },
+		"completion/complete":              s.handleCompletionComplete,
+	}
+}
+
 // HandleMessage processes an MCP message and returns a response
 func (s *Server) HandleMessage(ctx context.Context, msg *mcp.Message) *mcp.Message {
 	if msg.Method == "" {
 		return nil
 	}
 
-	switch msg.Method {
-	case "initialize":
-		return s.handleInitialize(msg)
-	case "tools/list":
-		return s.handleToolsList(ctx, msg)
-	case "tools/call":
-		return s.handleToolsCall(ctx, msg)
-	case "resources/list":
-		return s.handleResourcesList(msg)
-	case "resources/read":
-		return s.handleResourcesRead(ctx, msg)
-	case "resources/templates/list":
-		return s.handleResourceTemplatesList(msg)
-	case "prompts/list":
-		return s.handlePromptsList(msg)
-	case "prompts/get":
-		return s.handlePromptsGet(ctx, msg)
-	case "notifications/roots/list_changed":
-		return s.handleRootsListChanged(ctx, msg)
-	case "logging/setLevel":
-		return s.handleLoggingSetLevel(ctx, msg)
-	case "notifications/cancelled":
-		return s.handleCancelled(ctx, msg)
-	case "ping":
-		return s.handlePing(msg)
-	case "completion/complete":
-		return s.handleCompletionComplete(ctx, msg)
-	default:
-		return s.errorResponse(msg.ID, mcp.MethodNotFound, "method not found")
+	router := s.getMessageRouter()
+	if handler, ok := router[msg.Method]; ok {
+		return handler(ctx, msg)
 	}
+
+	return s.errorResponse(msg.ID, mcp.MethodNotFound, "method not found")
 }
 
 func (s *Server) handleInitialize(msg *mcp.Message) *mcp.Message {
