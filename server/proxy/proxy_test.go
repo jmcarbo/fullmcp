@@ -101,8 +101,10 @@ func TestProxyServer(t *testing.T) {
 	clientConn, serverConn := newMockTransportPair()
 
 	// Start backend server in goroutine
+	backendCtx, backendCancel := context.WithCancel(context.Background())
+	defer backendCancel()
 	go func() {
-		_ = backend.Serve(context.Background(), serverConn)
+		_ = backend.Serve(backendCtx, serverConn)
 	}()
 
 	// Give server goroutine time to start
@@ -128,8 +130,10 @@ func TestProxyServer(t *testing.T) {
 	proxyClientConn, proxyServerConn := newMockTransportPair()
 
 	// Start proxy server in goroutine
+	proxyCtx, proxyCancel := context.WithCancel(context.Background())
+	defer proxyCancel()
 	go func() {
-		_ = proxy.Serve(context.Background(), proxyServerConn)
+		_ = proxy.Serve(proxyCtx, proxyServerConn)
 	}()
 
 	// Write initialize message to proxy
@@ -251,8 +255,10 @@ func TestProxyWithMultipleCapabilities(t *testing.T) {
 	clientConn, serverConn := newMockTransportPair()
 
 	// Start backend server in goroutine
+	backendCtx, backendCancel := context.WithCancel(context.Background())
+	defer backendCancel()
 	go func() {
-		_ = backend.Serve(context.Background(), serverConn)
+		_ = backend.Serve(backendCtx, serverConn)
 	}()
 
 	// Give server goroutine time to start
@@ -278,9 +284,11 @@ func TestProxyWithMultipleCapabilities(t *testing.T) {
 	proxyClientConn, proxyServerConn := newMockTransportPair()
 
 	// Start proxy server in goroutine
+	proxyCtx, proxyCancel := context.WithCancel(context.Background())
+	defer proxyCancel()
 	doneCh := make(chan struct{})
 	go func() {
-		_ = proxy.Serve(context.Background(), proxyServerConn)
+		_ = proxy.Serve(proxyCtx, proxyServerConn)
 		close(doneCh)
 	}()
 
@@ -348,8 +356,10 @@ func TestProxyWithEmptyBackend(t *testing.T) {
 	clientConn, serverConn := newMockTransportPair()
 
 	// Start backend server in goroutine
+	backendCtx, backendCancel := context.WithCancel(context.Background())
+	defer backendCancel()
 	go func() {
-		_ = backend.Serve(context.Background(), serverConn)
+		_ = backend.Serve(backendCtx, serverConn)
 	}()
 
 	// Give server goroutine time to start

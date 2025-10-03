@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jmcarbo/fullmcp/mcp"
@@ -45,22 +46,20 @@ func main() {
 	fmt.Println()
 
 	fmt.Println("Server-side implementation:")
-	fmt.Print(`
-  // Create cancellable context
-  ctx, cancel := context.WithCancel(parentCtx)
-
-  // Register for cancellation
-  srv.RegisterCancellable(requestID, cancel)
-  defer srv.UnregisterCancellable(requestID)
-
-  // Long-running operation
-  select {
-  case <-ctx.Done():
-    return nil, ctx.Err() // Operation was cancelled
-  case result := <-workDone:
-    return result, nil
-  }
-`)
+	var sb1 strings.Builder
+	sb1.WriteString("\n  // Create cancellable context\n")
+	sb1.WriteString("  ctx, cancel := context.WithCancel(parentCtx)\n\n")
+	sb1.WriteString("  // Register for cancellation\n")
+	sb1.WriteString("  srv.RegisterCancellable(requestID, cancel)\n")
+	sb1.WriteString("  defer srv.UnregisterCancellable(requestID)\n\n")
+	sb1.WriteString("  // Long-running operation\n")
+	sb1.WriteString("  select {\n")
+	sb1.WriteString("  case <-ctx.Done():\n")
+	sb1.WriteString("    return nil, ctx.Err() // Operation was cancelled\n")
+	sb1.WriteString("  case result := <-workDone:\n")
+	sb1.WriteString("    return result, nil\n")
+	sb1.WriteString("  }\n")
+	fmt.Print(sb1.String())
 
 	// Example 4: Simulating cancellation flow
 	fmt.Println("🔄 Cancellation Flow Simulation")
@@ -116,16 +115,14 @@ func main() {
 	fmt.Println()
 
 	fmt.Println("Client cancels request:")
-	//nolint:govet // Example code contains format directives
-	fmt.Print(`
-  // Send cancellation
-  err := client.CancelRequest(requestID, "Operation timed out")
-  if err != nil {
-    log.Printf("Failed to send cancellation: %%v", err)
-  }
-
-  // Ignore any response that arrives after cancellation
-`)
+	var sb2 strings.Builder
+	sb2.WriteString("\n  // Send cancellation\n")
+	sb2.WriteString("  err := client.CancelRequest(requestID, \"Operation timed out\")\n")
+	sb2.WriteString("  if err != nil {\n")
+	sb2.WriteString("    log.Printf(\"Failed to send cancellation: %v\", err)\n")
+	sb2.WriteString("  }\n\n")
+	sb2.WriteString("  // Ignore any response that arrives after cancellation\n")
+	fmt.Print(sb2.String())
 	fmt.Println()
 
 	// Example 7: Server-side cancellation handling
@@ -134,30 +131,27 @@ func main() {
 	fmt.Println()
 
 	fmt.Println("Handler with cancellation support:")
-	fmt.Print(`
-  func longRunningTool(ctx context.Context, args Args) (Result, error) {
-    // Create cancellable context
-    ctx, cancel := context.WithCancel(ctx)
-    defer cancel()
-
-    // Register for cancellation
-    reqID := getRequestID(ctx)
-    srv.RegisterCancellable(reqID, cancel)
-    defer srv.UnregisterCancellable(reqID)
-
-    // Do work with cancellation checks
-    for i := 0; i < 1000; i++ {
-      select {
-      case <-ctx.Done():
-        return nil, ctx.Err()
-      default:
-        // Process item i
-      }
-    }
-
-    return result, nil
-  }
-`)
+	var sb3 strings.Builder
+	sb3.WriteString("\n  func longRunningTool(ctx context.Context, args Args) (Result, error) {\n")
+	sb3.WriteString("    // Create cancellable context\n")
+	sb3.WriteString("    ctx, cancel := context.WithCancel(ctx)\n")
+	sb3.WriteString("    defer cancel()\n\n")
+	sb3.WriteString("    // Register for cancellation\n")
+	sb3.WriteString("    reqID := getRequestID(ctx)\n")
+	sb3.WriteString("    srv.RegisterCancellable(reqID, cancel)\n")
+	sb3.WriteString("    defer srv.UnregisterCancellable(reqID)\n\n")
+	sb3.WriteString("    // Do work with cancellation checks\n")
+	sb3.WriteString("    for i := 0; i < 1000; i++ {\n")
+	sb3.WriteString("      select {\n")
+	sb3.WriteString("      case <-ctx.Done():\n")
+	sb3.WriteString("        return nil, ctx.Err()\n")
+	sb3.WriteString("      default:\n")
+	sb3.WriteString("        // Process item i\n")
+	sb3.WriteString("      }\n")
+	sb3.WriteString("    }\n\n")
+	sb3.WriteString("    return result, nil\n")
+	sb3.WriteString("  }\n")
+	fmt.Print(sb3.String())
 
 	// Example 8: Requirements and constraints
 	fmt.Println("✅ Requirements & Constraints")

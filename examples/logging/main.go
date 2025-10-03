@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/jmcarbo/fullmcp/mcp"
 	"github.com/jmcarbo/fullmcp/server"
@@ -156,17 +157,15 @@ func main() {
 	fmt.Println()
 
 	fmt.Println("Client configuration example:")
-	//nolint:govet // Example code contains format directives
-	fmt.Print(`
-  client := client.New(transport,
-    client.WithLogHandler(func(ctx context.Context, msg *mcp.LogMessage) {
-      log.Printf("[%%s] %%s: %%v", msg.Level, msg.Logger, msg.Data)
-    }),
-  )
-
-  // Set minimum log level
-  client.SetLogLevel(ctx, mcp.LogLevelInfo)
-`)
+	var sb1 strings.Builder
+	sb1.WriteString("\n  client := client.New(transport,\n")
+	sb1.WriteString("    client.WithLogHandler(func(ctx context.Context, msg *mcp.LogMessage) {\n")
+	sb1.WriteString("      log.Printf(\"[%s] %s: %v\", msg.Level, msg.Logger, msg.Data)\n")
+	sb1.WriteString("    }),\n")
+	sb1.WriteString("  )\n\n")
+	sb1.WriteString("  // Set minimum log level\n")
+	sb1.WriteString("  client.SetLogLevel(ctx, mcp.LogLevelInfo)\n")
+	fmt.Print(sb1.String())
 	fmt.Println()
 	fmt.Println()
 
@@ -176,18 +175,17 @@ func main() {
 	fmt.Println()
 
 	fmt.Println("Server-side logging methods:")
-	fmt.Print(`
-  // Generic logging
-  srv.Log(mcp.LogLevelInfo, "mylogger", map[string]interface{}{
-    "message": "Something happened",
-  })
-
-  // Convenience methods
-  srv.LogDebug("debug-logger", data)
-  srv.LogInfo("info-logger", data)
-  srv.LogWarning("warn-logger", data)
-  srv.LogError("error-logger", data)
-`)
+	var sb2 strings.Builder
+	sb2.WriteString("\n  // Generic logging\n")
+	sb2.WriteString("  srv.Log(mcp.LogLevelInfo, \"mylogger\", map[string]interface{}{\n")
+	sb2.WriteString("    \"message\": \"Something happened\",\n")
+	sb2.WriteString("  })\n\n")
+	sb2.WriteString("  // Convenience methods\n")
+	sb2.WriteString("  srv.LogDebug(\"debug-logger\", data)\n")
+	sb2.WriteString("  srv.LogInfo(\"info-logger\", data)\n")
+	sb2.WriteString("  srv.LogWarning(\"warn-logger\", data)\n")
+	sb2.WriteString("  srv.LogError(\"error-logger\", data)\n")
+	fmt.Print(sb2.String())
 	fmt.Println()
 
 	// Example 8: Real-world use cases

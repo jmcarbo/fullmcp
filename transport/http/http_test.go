@@ -136,9 +136,15 @@ func TestHTTPConn_Read(t *testing.T) {
 
 	httpConn := conn.(*httpConn)
 
-	// Write some data to the buffer
+	// Write some data to the buffer and signal availability
 	testData := []byte("test data")
+	httpConn.mu.Lock()
 	httpConn.buf.Write(testData)
+	httpConn.hasData = true
+	if httpConn.dataCond != nil {
+		httpConn.dataCond.Signal()
+	}
+	httpConn.mu.Unlock()
 
 	// Read the data
 	buf := make([]byte, len(testData))

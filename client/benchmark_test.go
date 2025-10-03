@@ -124,7 +124,11 @@ func BenchmarkClientListTools(b *testing.B) {
 	c := New(clientConn)
 	ctx := context.Background()
 	_ = c.Connect(ctx)
-	defer func() { _ = c.Close() }()
+	defer func() {
+		_ = c.Close()
+		_ = clientConn.Close()
+		_ = serverConn.Close()
+	}()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -174,7 +178,11 @@ func BenchmarkClientCallTool(b *testing.B) {
 	c := New(clientConn)
 	ctx := context.Background()
 	_ = c.Connect(ctx)
-	defer func() { _ = c.Close() }()
+	defer func() {
+		_ = c.Close()
+		_ = clientConn.Close()
+		_ = serverConn.Close()
+	}()
 
 	args := json.RawMessage(`{"a":5,"b":3}`)
 
@@ -226,7 +234,11 @@ func BenchmarkClientReadResource(b *testing.B) {
 	c := New(clientConn)
 	ctx := context.Background()
 	_ = c.Connect(ctx)
-	defer func() { _ = c.Close() }()
+	defer func() {
+		_ = c.Close()
+		_ = clientConn.Close()
+		_ = serverConn.Close()
+	}()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -242,7 +254,11 @@ func BenchmarkClientConcurrentCalls(b *testing.B) {
 	c := New(clientConn)
 	ctx := context.Background()
 	_ = c.Connect(ctx)
-	defer func() { _ = c.Close() }()
+	defer func() {
+		_ = c.Close()
+		_ = clientConn.Close()
+		_ = serverConn.Close()
+	}()
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {

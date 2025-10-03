@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: Create Semantic Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Determine version bump
+        id: semver
+        uses: paulhatch/semantic-version@v5.4.0
+        with:
+          tag_prefix: "v"
+          major_pattern: "(MAJOR)|breaking change|breaking:"
+          minor_pattern: "(MINOR)|feat:"
+          version_format: "${major}.${minor}.${patch}"
+          change_path: "."
+          namespace: ""
+          bump_each_commit: false
+          search_commit_body: true
+          user_format_type: "csv"
+
+      - name: Create Git Tag
+        if: steps.semver.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a v${{ steps.semver.outputs.version }} -m "Release v${{ steps.semver.outputs.version }}"
+          git push origin v${{ steps.semver.outputs.version }}
+
+      - name: Create GitHub Release
+        if: steps.semver.outputs.changed == 'true'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.semver.outputs.version }}
+          release_name: Release v${{ steps.semver.outputs.version }}
+          body: |
+            ## Changes in v${{ steps.semver.outputs.version }}
+
+            Version: ${{ steps.semver.outputs.version }}
+            Previous Version: ${{ steps.semver.outputs.previous_version }}
+
+            See commit history for details.
+          draft: false
+          prerelease: false
