@@ -7,6 +7,39 @@ import (
 	"github.com/jmcarbo/fullmcp/mcp"
 )
 
+// verifyContentType checks if the content type matches expected type
+func verifyContentType(t *testing.T, content mcp.Content, wantType string) {
+	t.Helper()
+	if content.ContentType() != wantType {
+		t.Errorf("ContentType() = %v, want %v", content.ContentType(), wantType)
+	}
+}
+
+// verifyTextContent checks if TextContent has expected text
+func verifyTextContent(t *testing.T, content mcp.Content, wantText string) {
+	t.Helper()
+	if textContent, ok := content.(mcp.TextContent); ok {
+		if textContent.Text != wantText {
+			t.Errorf("Text = %v, want %v", textContent.Text, wantText)
+		}
+	}
+}
+
+// verifyMimeType checks if content has expected MIME type
+func verifyMimeType(t *testing.T, content mcp.Content, wantMime string) {
+	t.Helper()
+	switch v := content.(type) {
+	case mcp.ImageContent:
+		if v.MimeType != wantMime {
+			t.Errorf("MimeType = %v, want %v", v.MimeType, wantMime)
+		}
+	case mcp.AudioContent:
+		if v.MimeType != wantMime {
+			t.Errorf("MimeType = %v, want %v", v.MimeType, wantMime)
+		}
+	}
+}
+
 func TestConvertToContent(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -145,31 +178,20 @@ func TestConvertToContent(t *testing.T) {
 				return
 			}
 
-			if tt.wantLen > 0 && tt.wantType != "" {
-				if got[0].ContentType() != tt.wantType {
-					t.Errorf("convertToContent() type = %v, want %v", got[0].ContentType(), tt.wantType)
-				}
+			if tt.wantLen == 0 {
+				return
+			}
+
+			if tt.wantType != "" {
+				verifyContentType(t, got[0], tt.wantType)
 			}
 
 			if tt.wantText != "" {
-				if textContent, ok := got[0].(mcp.TextContent); ok {
-					if textContent.Text != tt.wantText {
-						t.Errorf("convertToContent() text = %v, want %v", textContent.Text, tt.wantText)
-					}
-				}
+				verifyTextContent(t, got[0], tt.wantText)
 			}
 
 			if tt.checkMime {
-				switch v := got[0].(type) {
-				case mcp.ImageContent:
-					if v.MimeType != tt.wantMime {
-						t.Errorf("convertToContent() mimeType = %v, want %v", v.MimeType, tt.wantMime)
-					}
-				case mcp.AudioContent:
-					if v.MimeType != tt.wantMime {
-						t.Errorf("convertToContent() mimeType = %v, want %v", v.MimeType, tt.wantMime)
-					}
-				}
+				verifyMimeType(t, got[0], tt.wantMime)
 			}
 
 			// Special handling for map test - check if it's valid JSON
