@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jmcarbo/fullmcp/mcp"
 )
@@ -89,14 +90,12 @@ func TestServer_Initialize(t *testing.T) {
 
 	// Send EOF to stop server
 	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		transport.mu.Lock()
-		transport.reader.Write([]byte{}) // Trigger EOF
-		transport.mu.Unlock()
-		cancel()
-	}()
+	defer cancel()
 
-	srv.Serve(ctx, transport)
+	go srv.Serve(ctx, transport)
+
+	// Give server time to process the initialize message
+	time.Sleep(100 * time.Millisecond)
 
 	// Read response
 	response, err := transport.readResponse()
