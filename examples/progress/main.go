@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jmcarbo/fullmcp/mcp"
@@ -150,23 +151,22 @@ func main() {
 	fmt.Println()
 
 	fmt.Println("Client configuration example:")
-	//nolint:govet // Example code contains format directives
-	fmt.Print(`
-  client := client.New(transport,
-    client.WithProgressHandler(
-      func(ctx context.Context, notif *mcp.ProgressNotification) {
-        if notif.Total != nil {
-          percent := (notif.Progress / *notif.Total) * 100
-          fmt.Printf("[%%v] %%.1f%%%% complete\n",
-            notif.ProgressToken, percent)
-        } else {
-          fmt.Printf("[%%v] Processed: %%.0f\n",
-            notif.ProgressToken, notif.Progress)
-        }
-      },
-    ),
-  )
-`)
+	var sb1 strings.Builder
+	sb1.WriteString("\n  client := client.New(transport,\n")
+	sb1.WriteString("    client.WithProgressHandler(\n")
+	sb1.WriteString("      func(ctx context.Context, notif *mcp.ProgressNotification) {\n")
+	sb1.WriteString("        if notif.Total != nil {\n")
+	sb1.WriteString("          percent := (notif.Progress / *notif.Total) * 100\n")
+	sb1.WriteString("          fmt.Printf(\"[%v] %.1f%% complete\\n\",\n")
+	sb1.WriteString("            notif.ProgressToken, percent)\n")
+	sb1.WriteString("        } else {\n")
+	sb1.WriteString("          fmt.Printf(\"[%v] Processed: %.0f\\n\",\n")
+	sb1.WriteString("            notif.ProgressToken, notif.Progress)\n")
+	sb1.WriteString("        }\n")
+	sb1.WriteString("      },\n")
+	sb1.WriteString("    ),\n")
+	sb1.WriteString("  )\n")
+	fmt.Print(sb1.String())
 	fmt.Println()
 	fmt.Println()
 
@@ -176,18 +176,16 @@ func main() {
 	fmt.Println()
 
 	fmt.Println("Sending progress from server:")
-	fmt.Print(`
-  // With total
-  total := 100.0
-  srv.NotifyProgress("task-id", 50.0, &total)
-
-  // Without total (indefinite)
-  srv.NotifyProgress("task-id", 42.0, nil)
-
-  // Using progress context in handlers
-  pc := server.NewProgressContext(progressToken, srv.Progress)
-  pc.Update(75.0, &total)
-`)
+	var sb2 strings.Builder
+	sb2.WriteString("\n  // With total\n")
+	sb2.WriteString("  total := 100.0\n")
+	sb2.WriteString("  srv.NotifyProgress(\"task-id\", 50.0, &total)\n\n")
+	sb2.WriteString("  // Without total (indefinite)\n")
+	sb2.WriteString("  srv.NotifyProgress(\"task-id\", 42.0, nil)\n\n")
+	sb2.WriteString("  // Using progress context in handlers\n")
+	sb2.WriteString("  pc := server.NewProgressContext(progressToken, srv.Progress)\n")
+	sb2.WriteString("  pc.Update(75.0, &total)\n")
+	fmt.Print(sb2.String())
 	fmt.Println()
 
 	// Example 9: Requirements and best practices

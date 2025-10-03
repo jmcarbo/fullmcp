@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jmcarbo/fullmcp/server"
@@ -63,13 +64,12 @@ func main() {
 	fmt.Println()
 
 	fmt.Println("Simple ping:")
-	//nolint:govet // Example code contains format directives
-	fmt.Print(`
-  err := client.Ping(ctx)
-  if err != nil {
-    log.Printf("Server unreachable: %%v", err)
-  }
-`)
+	var sb1 strings.Builder
+	sb1.WriteString("\n  err := client.Ping(ctx)\n")
+	sb1.WriteString("  if err != nil {\n")
+	sb1.WriteString("    log.Printf(\"Server unreachable: %v\", err)\n")
+	sb1.WriteString("  }\n")
+	fmt.Print(sb1.String())
 	fmt.Println()
 
 	// Example 5: Connection health monitoring
@@ -78,30 +78,26 @@ func main() {
 	fmt.Println()
 
 	fmt.Println("Periodic health check example:")
-	//nolint:govet // Example code contains format directives
-	fmt.Print(`
-  ticker := time.NewTicker(30 * time.Second)
-  defer ticker.Stop()
-
-  for {
-    select {
-    case <-ticker.C:
-      start := time.Now()
-      err := client.Ping(ctx)
-      latency := time.Since(start)
-
-      if err != nil {
-        log.Printf("Health check failed: %%v", err)
-        // Reconnect logic here
-      } else {
-        log.Printf("Health check OK (latency: %%v)", latency)
-      }
-
-    case <-ctx.Done():
-      return
-    }
-  }
-`)
+	var sb2 strings.Builder
+	sb2.WriteString("\n  ticker := time.NewTicker(30 * time.Second)\n")
+	sb2.WriteString("  defer ticker.Stop()\n\n")
+	sb2.WriteString("  for {\n")
+	sb2.WriteString("    select {\n")
+	sb2.WriteString("    case <-ticker.C:\n")
+	sb2.WriteString("      start := time.Now()\n")
+	sb2.WriteString("      err := client.Ping(ctx)\n")
+	sb2.WriteString("      latency := time.Since(start)\n\n")
+	sb2.WriteString("      if err != nil {\n")
+	sb2.WriteString("        log.Printf(\"Health check failed: %v\", err)\n")
+	sb2.WriteString("        // Reconnect logic here\n")
+	sb2.WriteString("      } else {\n")
+	sb2.WriteString("        log.Printf(\"Health check OK (latency: %v)\", latency)\n")
+	sb2.WriteString("      }\n\n")
+	sb2.WriteString("    case <-ctx.Done():\n")
+	sb2.WriteString("      return\n")
+	sb2.WriteString("    }\n")
+	sb2.WriteString("  }\n")
+	fmt.Print(sb2.String())
 
 	// Example 6: Timeout handling
 	fmt.Println("⏱️  Timeout Handling")
@@ -109,20 +105,18 @@ func main() {
 	fmt.Println()
 
 	fmt.Println("Ping with timeout:")
-	//nolint:govet // Example code contains format directives
-	fmt.Print(`
-  ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-  defer cancel()
-
-  err := client.Ping(ctx)
-  if err != nil {
-    if errors.Is(err, context.DeadlineExceeded) {
-      log.Println("Ping timeout - server not responding")
-    } else {
-      log.Printf("Ping failed: ` + "%" + `v", err)
-    }
-  }
-`)
+	var sb3 strings.Builder
+	sb3.WriteString("\n  ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)\n")
+	sb3.WriteString("  defer cancel()\n\n")
+	sb3.WriteString("  err := client.Ping(ctx)\n")
+	sb3.WriteString("  if err != nil {\n")
+	sb3.WriteString("    if errors.Is(err, context.DeadlineExceeded) {\n")
+	sb3.WriteString("      log.Println(\"Ping timeout - server not responding\")\n")
+	sb3.WriteString("    } else {\n")
+	sb3.WriteString("      log.Printf(\"Ping failed: %v\", err)\n")
+	sb3.WriteString("    }\n")
+	sb3.WriteString("  }\n")
+	fmt.Print(sb3.String())
 
 	// Example 7: Latency measurement
 	fmt.Println("📊 Latency Measurement")
@@ -217,25 +211,23 @@ func main() {
 	fmt.Println()
 
 	fmt.Println("Adaptive ping interval:")
-	fmt.Print(`
-  interval := 30 * time.Second
-  failures := 0
-
-  for {
-    err := client.Ping(ctx)
-    if err != nil {
-      failures++
-      // Increase ping frequency on failures
-      interval = max(5*time.Second, interval/2)
-    } else {
-      failures = 0
-      // Decrease ping frequency on success
-      interval = min(60*time.Second, interval*2)
-    }
-
-    time.Sleep(interval)
-  }
-`)
+	var sb4 strings.Builder
+	sb4.WriteString("\n  interval := 30 * time.Second\n")
+	sb4.WriteString("  failures := 0\n\n")
+	sb4.WriteString("  for {\n")
+	sb4.WriteString("    err := client.Ping(ctx)\n")
+	sb4.WriteString("    if err != nil {\n")
+	sb4.WriteString("      failures++\n")
+	sb4.WriteString("      // Increase ping frequency on failures\n")
+	sb4.WriteString("      interval = max(5*time.Second, interval/2)\n")
+	sb4.WriteString("    } else {\n")
+	sb4.WriteString("      failures = 0\n")
+	sb4.WriteString("      // Decrease ping frequency on success\n")
+	sb4.WriteString("      interval = min(60*time.Second, interval*2)\n")
+	sb4.WriteString("    }\n\n")
+	sb4.WriteString("    time.Sleep(interval)\n")
+	sb4.WriteString("  }\n")
+	fmt.Print(sb4.String())
 
 	fmt.Println("✨ Ping demonstration complete!")
 	fmt.Println()

@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jmcarbo/fullmcp/auth/oauth21"
 )
@@ -128,42 +129,42 @@ func main() {
 	fmt.Println()
 
 	fmt.Println("Google:")
-	fmt.Print(`
-  provider := oauth21.New(
-      oauth21.Google,
-      "client-id",
-      "client-secret",
-      "http://localhost:8080/callback",
-      []string{"email", "profile"},
-  )
-`)
+	var sb1 strings.Builder
+	sb1.WriteString("\n  provider := oauth21.New(\n")
+	sb1.WriteString("      oauth21.Google,\n")
+	sb1.WriteString("      \"client-id\",\n")
+	sb1.WriteString("      \"client-secret\",\n")
+	sb1.WriteString("      \"http://localhost:8080/callback\",\n")
+	sb1.WriteString("      []string{\"email\", \"profile\"},\n")
+	sb1.WriteString("  )\n")
+	fmt.Print(sb1.String())
 
 	fmt.Println("GitHub:")
-	fmt.Print(`
-  provider := oauth21.New(
-      oauth21.GitHub,
-      "client-id",
-      "client-secret",
-      "http://localhost:8080/callback",
-      []string{"user", "repo"},
-  )
-`)
+	var sb2 strings.Builder
+	sb2.WriteString("\n  provider := oauth21.New(\n")
+	sb2.WriteString("      oauth21.GitHub,\n")
+	sb2.WriteString("      \"client-id\",\n")
+	sb2.WriteString("      \"client-secret\",\n")
+	sb2.WriteString("      \"http://localhost:8080/callback\",\n")
+	sb2.WriteString("      []string{\"user\", \"repo\"},\n")
+	sb2.WriteString("  )\n")
+	fmt.Print(sb2.String())
 
 	fmt.Println("Custom Provider:")
-	fmt.Print(`
-  provider := oauth21.New(
-      oauth21.Azure,
-      "client-id",
-      "client-secret",
-      "http://localhost:8080/callback",
-      []string{"openid", "email"},
-      oauth21.WithCustomEndpoint(
-          "https://custom.com/authorize",
-          "https://custom.com/token",
-      ),
-      oauth21.WithUserInfoURL("https://custom.com/userinfo"),
-  )
-`)
+	var sb3 strings.Builder
+	sb3.WriteString("\n  provider := oauth21.New(\n")
+	sb3.WriteString("      oauth21.Azure,\n")
+	sb3.WriteString("      \"client-id\",\n")
+	sb3.WriteString("      \"client-secret\",\n")
+	sb3.WriteString("      \"http://localhost:8080/callback\",\n")
+	sb3.WriteString("      []string{\"openid\", \"email\"},\n")
+	sb3.WriteString("      oauth21.WithCustomEndpoint(\n")
+	sb3.WriteString("          \"https://custom.com/authorize\",\n")
+	sb3.WriteString("          \"https://custom.com/token\",\n")
+	sb3.WriteString("      ),\n")
+	sb3.WriteString("      oauth21.WithUserInfoURL(\"https://custom.com/userinfo\"),\n")
+	sb3.WriteString("  )\n")
+	fmt.Print(sb3.String())
 
 	// Example 7: Redirect URI Validation
 	fmt.Println("🎯 Strict Redirect URI Matching")
@@ -230,39 +231,32 @@ func main() {
 	fmt.Println("=========================")
 	fmt.Println()
 	fmt.Println("Complete OAuth 2.1 flow:")
-	//nolint:govet // Example code contains format directives
-	fmt.Print(`
-  // 1. Generate PKCE challenge
-  challenge, _ := oauth21.GeneratePKCEChallenge()
-
-  // 2. Generate authorization URL
-  state := generateRandomState()
-  authURL := provider.AuthCodeURLWithPKCE(state, challenge)
-
-  // 3. Redirect user to authURL
-  http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)
-
-  // 4. Handle callback
-  func handleCallback(w http.ResponseWriter, r *http.Request) {
-      code := r.URL.Query().Get("code")
-      state := r.URL.Query().Get("state")
-
-      // 5. Exchange code for token (with PKCE)
-      token, err := provider.ExchangeWithPKCE(ctx, code, state)
-      if err != nil {
-          // Handle error
-      }
-
-      // 6. Get user info
-      claims, err := provider.ValidateToken(ctx, token.AccessToken)
-      if err != nil {
-          // Handle error
-      }
-
-      // User is authenticated
-      log.Printf("User: ` + "%" + `s (` + "%" + `s)", claims.Subject, claims.Email)
-  }
-`)
+	var sb4 strings.Builder
+	sb4.WriteString("\n  // 1. Generate PKCE challenge\n")
+	sb4.WriteString("  challenge, _ := oauth21.GeneratePKCEChallenge()\n\n")
+	sb4.WriteString("  // 2. Generate authorization URL\n")
+	sb4.WriteString("  state := generateRandomState()\n")
+	sb4.WriteString("  authURL := provider.AuthCodeURLWithPKCE(state, challenge)\n\n")
+	sb4.WriteString("  // 3. Redirect user to authURL\n")
+	sb4.WriteString("  http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)\n\n")
+	sb4.WriteString("  // 4. Handle callback\n")
+	sb4.WriteString("  func handleCallback(w http.ResponseWriter, r *http.Request) {\n")
+	sb4.WriteString("      code := r.URL.Query().Get(\"code\")\n")
+	sb4.WriteString("      state := r.URL.Query().Get(\"state\")\n\n")
+	sb4.WriteString("      // 5. Exchange code for token (with PKCE)\n")
+	sb4.WriteString("      token, err := provider.ExchangeWithPKCE(ctx, code, state)\n")
+	sb4.WriteString("      if err != nil {\n")
+	sb4.WriteString("          // Handle error\n")
+	sb4.WriteString("      }\n\n")
+	sb4.WriteString("      // 6. Get user info\n")
+	sb4.WriteString("      claims, err := provider.ValidateToken(ctx, token.AccessToken)\n")
+	sb4.WriteString("      if err != nil {\n")
+	sb4.WriteString("          // Handle error\n")
+	sb4.WriteString("      }\n\n")
+	sb4.WriteString("      // User is authenticated\n")
+	sb4.WriteString("      log.Printf(\"User: %s (%s)\", claims.Subject, claims.Email)\n")
+	sb4.WriteString("  }\n")
+	fmt.Print(sb4.String())
 
 	// Example 11: Migration from OAuth 2.0
 	fmt.Println("🔄 Migration from OAuth 2.0")
