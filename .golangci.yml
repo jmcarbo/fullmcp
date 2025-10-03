@@ -21,7 +21,7 @@ linters:
         - name: package-comments
           disabled: true
     gocyclo:
-      min-complexity: 16
+      min-complexity: 15
     cyclop:
       max-complexity: 15
 
