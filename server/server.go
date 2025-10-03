@@ -198,6 +198,56 @@ func (s *Server) handleToolsList(ctx context.Context, msg *mcp.Message) *mcp.Mes
 	return s.successResponse(msg.ID, result)
 }
 
+// convertToContent converts various result types to MCP Content
+func convertToContent(result interface{}) ([]mcp.Content, error) {
+	// Handle nil
+	if result == nil {
+		return []mcp.Content{
+			mcp.TextContent{Type: "text", Text: ""},
+		}, nil
+	}
+
+	// Handle already-typed content
+	switch v := result.(type) {
+	case []mcp.Content:
+		return v, nil
+	case mcp.Content:
+		return []mcp.Content{v}, nil
+	case mcp.TextContent:
+		return []mcp.Content{v}, nil
+	case mcp.ImageContent:
+		return []mcp.Content{v}, nil
+	case mcp.AudioContent:
+		return []mcp.Content{v}, nil
+	case mcp.ResourceContent:
+		return []mcp.Content{v}, nil
+	case mcp.ResourceLinkContent:
+		return []mcp.Content{v}, nil
+	case string:
+		// String - convert to TextContent
+		return []mcp.Content{
+			mcp.TextContent{Type: "text", Text: v},
+		}, nil
+	case []byte:
+		// Bytes - convert to string then TextContent
+		return []mcp.Content{
+			mcp.TextContent{Type: "text", Text: string(v)},
+		}, nil
+	default:
+		// For other types, marshal to JSON for better representation
+		jsonBytes, err := json.Marshal(result)
+		if err != nil {
+			// If JSON marshaling fails, fall back to fmt.Sprintf
+			return []mcp.Content{
+				mcp.TextContent{Type: "text", Text: fmt.Sprintf("%v", result)},
+			}, nil
+		}
+		return []mcp.Content{
+			mcp.TextContent{Type: "text", Text: string(jsonBytes)},
+		}, nil
+	}
+}
+
 func (s *Server) handleToolsCall(ctx context.Context, msg *mcp.Message) *mcp.Message {
 	var params struct {
 		Name      string          `json:"name"`
@@ -213,11 +263,9 @@ func (s *Server) handleToolsCall(ctx context.Context, msg *mcp.Message) *mcp.Mes
 		return s.errorResponse(msg.ID, mcp.InternalError, err.Error())
 	}
 
-	content := []mcp.TextContent{
-		{
-			Type: "text",
-			Text: fmt.Sprintf("%v", result),
-		},
+	content, err := convertToContent(result)
+	if err != nil {
+		return s.errorResponse(msg.ID, mcp.InternalError, fmt.Sprintf("failed to convert result: %v", err))
 	}
 
 	return s.successResponse(msg.ID, map[string]interface{}{
@@ -242,18 +290,23 @@ func (s *Server) handleResourcesRead(ctx context.Context, msg *mcp.Message) *mcp
 		return s.errorResponse(msg.ID, mcp.InvalidParams, "invalid parameters")
 	}
 
-	data, err := s.resources.Read(ctx, params.URI)
+	resource, err := s.resources.ReadWithMetadata(ctx, params.URI)
 	if err != nil {
 		return s.errorResponse(msg.ID, mcp.InternalError, err.Error())
 	}
 
-	contents := []map[string]interface{}{
-		{
-			"uri":      params.URI,
-			"mimeType": "text/plain",
-			"text":     string(data),
-		},
+	// Build resource content based on MIME type
+	content := map[string]interface{}{
+		"uri":      resource.URI,
+		"mimeType": resource.MimeType,
 	}
+
+	// For text-based MIME types, include as text
+	// For binary types, we'd need to base64 encode (future enhancement)
+	// For now, always include as text for backward compatibility
+	content["text"] = string(resource.Data)
+
+	contents := []map[string]interface{}{content}
 
 	return s.successResponse(msg.ID, map[string]interface{}{
 		"contents": contents,

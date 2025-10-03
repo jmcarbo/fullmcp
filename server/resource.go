@@ -14,6 +14,13 @@ type ResourceFunc func(context.Context) ([]byte, error)
 // ResourceTemplateFunc reads resource content with parameters
 type ResourceTemplateFunc func(context.Context, map[string]string) ([]byte, error)
 
+// ResourceContent represents resource content with metadata
+type ResourceContentWithMetadata struct {
+	Data     []byte
+	MimeType string
+	URI      string
+}
+
 // ResourceHandler wraps a resource function
 type ResourceHandler struct {
 	URI         string
@@ -76,20 +83,53 @@ func (rm *ResourceManager) RegisterTemplate(handler *ResourceTemplateHandler) er
 	return nil
 }
 
-// Read reads a resource
+// Read reads a resource (legacy method - returns only data)
 func (rm *ResourceManager) Read(ctx context.Context, uri string) ([]byte, error) {
+	content, err := rm.ReadWithMetadata(ctx, uri)
+	if err != nil {
+		return nil, err
+	}
+	return content.Data, nil
+}
+
+// ReadWithMetadata reads a resource with metadata (MIME type, etc.)
+func (rm *ResourceManager) ReadWithMetadata(ctx context.Context, uri string) (*ResourceContentWithMetadata, error) {
 	rm.mu.RLock()
 	defer rm.mu.RUnlock()
 
 	// Try exact match first
 	if handler, exists := rm.resources[uri]; exists {
-		return handler.Reader(ctx)
+		data, err := handler.Reader(ctx)
+		if err != nil {
+			return nil, err
+		}
+		mimeType := handler.MimeType
+		if mimeType == "" {
+			mimeType = "text/plain"
+		}
+		return &ResourceContentWithMetadata{
+			Data:     data,
+			MimeType: mimeType,
+			URI:      uri,
+		}, nil
 	}
 
 	// Try templates
 	for _, template := range rm.templates {
 		if params, ok := template.Match(uri); ok {
-			return template.Reader(ctx, params)
+			data, err := template.Reader(ctx, params)
+			if err != nil {
+				return nil, err
+			}
+			mimeType := template.MimeType
+			if mimeType == "" {
+				mimeType = "text/plain"
+			}
+			return &ResourceContentWithMetadata{
+				Data:     data,
+				MimeType: mimeType,
+				URI:      uri,
+			}, nil
 		}
 	}
 
