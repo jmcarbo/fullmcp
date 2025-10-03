@@ -2,7 +2,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/jmcarbo/fullmcp.svg)](https://pkg.go.dev/github.com/jmcarbo/fullmcp)
 [![Go Report Card](https://goreportcard.com/badge/github.com/jmcarbo/fullmcp)](https://goreportcard.com/report/github.com/jmcarbo/fullmcp)
-[![Coverage](https://img.shields.io/badge/coverage-95.8%25-brightgreen)](https://github.com/jmcarbo/fullmcp)
+[![codecov](https://codecov.io/gh/jmcarbo/fullmcp/branch/main/graph/badge.svg)](https://codecov.io/gh/jmcarbo/fullmcp)
 
 A comprehensive, production-ready Golang implementation of the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) with full support for tools, resources, prompts, and multiple transport mechanisms.
 
