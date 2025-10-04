@@ -67,6 +67,12 @@ func TestServer_ServeHTTP_ForbiddenOrigin(t *testing.T) {
 	if w.Code != http.StatusForbidden {
 		t.Errorf("expected status %d, got %d", http.StatusForbidden, w.Code)
 	}
+
+	// Verify CORS headers are set even for forbidden origin
+	// so browser can see the actual error instead of CORS error
+	if w.Header().Get("Access-Control-Allow-Origin") != "http://forbidden.com" {
+		t.Errorf("expected CORS header for forbidden origin, got %q", w.Header().Get("Access-Control-Allow-Origin"))
+	}
 }
 
 func TestServer_ServeHTTP_Options(t *testing.T) {

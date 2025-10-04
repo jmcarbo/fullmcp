@@ -573,6 +573,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s.allowedOrigin != "" {
 		origin := r.Header.Get("Origin")
 		if origin != "" && !matchOrigin(origin, s.allowedOrigin) {
+			// Set CORS headers even for forbidden origin so browser can see the error
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			http.Error(w, "forbidden origin", http.StatusForbidden)
 			return
 		}
