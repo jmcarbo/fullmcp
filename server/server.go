@@ -163,6 +163,12 @@ func (s *Server) HandleMessage(ctx context.Context, msg *mcp.Message) *mcp.Messa
 		return handler(ctx, msg)
 	}
 
+	// Don't send error responses for notifications (messages without ID)
+	// Per JSON-RPC 2.0 spec, notifications must not receive any response
+	if msg.ID == nil {
+		return nil
+	}
+
 	return s.errorResponse(msg.ID, mcp.MethodNotFound, "method not found")
 }
 

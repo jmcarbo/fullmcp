@@ -376,3 +376,60 @@ func TestServer_InvalidParams(t *testing.T) {
 		t.Errorf("expected error code %d, got %d", mcp.InvalidParams, response.Error.Code)
 	}
 }
+
+func TestServer_NotificationInitialized(t *testing.T) {
+	srv := New("test-server")
+
+	// Send notifications/initialized notification (no ID)
+	msg := &mcp.Message{
+		JSONRPC: "2.0",
+		Method:  "notifications/initialized",
+	}
+
+	response := srv.HandleMessage(context.Background(), msg)
+	// Notifications should not receive any response
+	if response != nil {
+		t.Errorf("expected no response for notification, got %+v", response)
+	}
+}
+
+func TestServer_UnknownNotification(t *testing.T) {
+	srv := New("test-server")
+
+	// Send unknown notification (no ID)
+	msg := &mcp.Message{
+		JSONRPC: "2.0",
+		Method:  "notifications/unknown",
+	}
+
+	response := srv.HandleMessage(context.Background(), msg)
+	// Notifications should not receive error responses
+	if response != nil {
+		t.Errorf("expected no response for unknown notification, got %+v", response)
+	}
+}
+
+func TestServer_UnknownRequest(t *testing.T) {
+	srv := New("test-server")
+
+	// Send unknown request (with ID)
+	msg := &mcp.Message{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "unknown/method",
+	}
+
+	response := srv.HandleMessage(context.Background(), msg)
+	// Requests should receive error responses
+	if response == nil {
+		t.Fatal("expected error response for unknown request")
+	}
+
+	if response.Error == nil {
+		t.Fatal("expected error in response")
+	}
+
+	if response.Error.Code != int(mcp.MethodNotFound) {
+		t.Errorf("expected error code %d, got %d", mcp.MethodNotFound, response.Error.Code)
+	}
+}
