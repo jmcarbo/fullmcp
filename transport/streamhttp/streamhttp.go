@@ -530,6 +530,29 @@ func hasSuffix(s, suffix string) bool {
 	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
 }
 
+// setCORSHeaders sets CORS headers on the response
+func (s *Server) setCORSHeaders(w http.ResponseWriter, r *http.Request) {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return
+	}
+
+	// Determine allowed origin to return
+	allowedOrigin := "*"
+	if s.allowedOrigin != "" {
+		// If we have a specific pattern and origin matches, echo it back
+		if matchOrigin(origin, s.allowedOrigin) {
+			allowedOrigin = origin
+		} else {
+			// Don't set CORS headers for non-matching origins
+			return
+		}
+	}
+
+	w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+}
+
 // ListenAndServe starts the Streamable HTTP server
 func (s *Server) ListenAndServe() error {
 	return http.ListenAndServe(s.addr, s)
@@ -556,9 +579,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id, X-API-Key, Authorization, Last-Event-ID")
 		w.Header().Set("Access-Control-Max-Age", "86400")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+
+	// Set CORS headers for actual requests
+	s.setCORSHeaders(w, r)
 
 	switch r.Method {
 	case http.MethodPost:

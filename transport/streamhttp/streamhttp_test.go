@@ -412,3 +412,85 @@ func TestServer_WildcardAll(t *testing.T) {
 		}
 	}
 }
+
+func TestServer_CORSHeadersInPOST(t *testing.T) {
+	server := NewServer(":8080", nil, WithAllowedOrigin("https://example.com"))
+
+	req := httptest.NewRequest("POST", "/mcp", nil)
+	req.Header.Set("Origin", "https://example.com")
+	w := httptest.NewRecorder()
+
+	server.ServeHTTP(w, req)
+
+	// Verify CORS headers are present in POST response
+	if w.Header().Get("Access-Control-Allow-Origin") != "https://example.com" {
+		t.Errorf("expected Access-Control-Allow-Origin header to be 'https://example.com', got %q", w.Header().Get("Access-Control-Allow-Origin"))
+	}
+
+	if w.Header().Get("Access-Control-Allow-Credentials") != "true" {
+		t.Errorf("expected Access-Control-Allow-Credentials header to be 'true', got %q", w.Header().Get("Access-Control-Allow-Credentials"))
+	}
+}
+
+func TestServer_CORSHeadersInGET(t *testing.T) {
+	server := NewServer(":8080", nil, WithAllowedOrigin("https://example.com"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	req := httptest.NewRequest("GET", "/mcp", nil)
+	req = req.WithContext(ctx)
+	req.Header.Set("Origin", "https://example.com")
+	w := httptest.NewRecorder()
+
+	// Run in goroutine since handleGET blocks
+	done := make(chan bool)
+	go func() {
+		server.ServeHTTP(w, req)
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		// Verify CORS headers are present in GET response
+		if w.Header().Get("Access-Control-Allow-Origin") != "https://example.com" {
+			t.Errorf("expected Access-Control-Allow-Origin header to be 'https://example.com', got %q", w.Header().Get("Access-Control-Allow-Origin"))
+		}
+
+		if w.Header().Get("Access-Control-Allow-Credentials") != "true" {
+			t.Errorf("expected Access-Control-Allow-Credentials header to be 'true', got %q", w.Header().Get("Access-Control-Allow-Credentials"))
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("handleGET did not complete in time")
+	}
+}
+
+func TestServer_CORSHeadersWithWildcard(t *testing.T) {
+	server := NewServer(":8080", nil, WithAllowedOrigin("https://*.example.com"))
+
+	req := httptest.NewRequest("POST", "/mcp", nil)
+	req.Header.Set("Origin", "https://api.example.com")
+	w := httptest.NewRecorder()
+
+	server.ServeHTTP(w, req)
+
+	// When using wildcard pattern, should echo back the origin
+	if w.Header().Get("Access-Control-Allow-Origin") != "https://api.example.com" {
+		t.Errorf("expected Access-Control-Allow-Origin header to be 'https://api.example.com', got %q", w.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
+
+func TestServer_CORSHeadersNoOrigin(t *testing.T) {
+	server := NewServer(":8080", nil, WithAllowedOrigin("https://example.com"))
+
+	req := httptest.NewRequest("POST", "/mcp", nil)
+	// No Origin header set
+	w := httptest.NewRecorder()
+
+	server.ServeHTTP(w, req)
+
+	// Should not set CORS headers when no Origin header is present
+	if w.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Errorf("expected no Access-Control-Allow-Origin header, got %q", w.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
