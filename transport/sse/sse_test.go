@@ -221,3 +221,36 @@ func TestServer_handleSSE_GET(t *testing.T) {
 		t.Errorf("Expected text/event-stream, got %s", resp.Header.Get("Content-Type"))
 	}
 }
+
+func TestServer_handleSSE_OPTIONS(t *testing.T) {
+	handler := NewMCPSSEHandler(func(ctx context.Context, req []byte) ([]byte, error) {
+		return []byte(`{"status":"ok"}`), nil
+	})
+
+	server := NewServer(":0", handler)
+
+	req := httptest.NewRequest(http.MethodOptions, "/", nil)
+	w := httptest.NewRecorder()
+
+	server.handleSSE(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("expected status 204, got %d", w.Code)
+	}
+
+	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
+		t.Errorf("expected Access-Control-Allow-Origin *, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+	}
+
+	if w.Header().Get("Access-Control-Allow-Methods") != "GET, POST, OPTIONS" {
+		t.Errorf("expected Access-Control-Allow-Methods 'GET, POST, OPTIONS', got %s", w.Header().Get("Access-Control-Allow-Methods"))
+	}
+
+	if w.Header().Get("Access-Control-Allow-Headers") != "Content-Type, X-API-Key, Authorization" {
+		t.Errorf("expected Access-Control-Allow-Headers 'Content-Type, X-API-Key, Authorization', got %s", w.Header().Get("Access-Control-Allow-Headers"))
+	}
+
+	if w.Header().Get("Access-Control-Max-Age") != "86400" {
+		t.Errorf("expected Access-Control-Max-Age '86400', got %s", w.Header().Get("Access-Control-Max-Age"))
+	}
+}

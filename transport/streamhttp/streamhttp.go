@@ -485,6 +485,20 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Handle CORS preflight
+	if r.Method == http.MethodOptions {
+		allowedOrigin := "*"
+		if s.allowedOrigin != "" {
+			allowedOrigin = s.allowedOrigin
+		}
+		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id, X-API-Key, Authorization, Last-Event-ID")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	switch r.Method {
 	case http.MethodPost:
 		s.handlePOST(w, r)

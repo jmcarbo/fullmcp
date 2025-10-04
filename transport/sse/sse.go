@@ -219,6 +219,16 @@ func (s *Server) ListenAndServe() error {
 
 // handleSSE handles SSE requests
 func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
+	// Handle CORS preflight
+	if r.Method == http.MethodOptions {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key, Authorization")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	// Set SSE headers
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")

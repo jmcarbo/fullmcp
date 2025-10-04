@@ -235,6 +235,16 @@ func NewMCPHandler(handleFunc func(context.Context, []byte) ([]byte, error)) *MC
 
 // ServeHTTP implements http.Handler
 func (h *MCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Handle CORS preflight
+	if r.Method == http.MethodOptions {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key, Authorization")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
