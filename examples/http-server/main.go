@@ -75,6 +75,17 @@ func setupServer() *server.Server {
 
 func createMCPHandler(srv *server.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers for all requests
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key, Authorization")
+
+		// Handle CORS preflight
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -95,6 +106,7 @@ func createMCPHandler(srv *server.Server) http.HandlerFunc {
 
 		response := srv.HandleMessage(r.Context(), &msg)
 		if response == nil {
+			// For notifications, return 202 Accepted with no body
 			w.WriteHeader(http.StatusAccepted)
 			return
 		}
