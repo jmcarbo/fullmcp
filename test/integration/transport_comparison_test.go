@@ -159,7 +159,8 @@ func TestStreamableHTTPSpecificFeatures(t *testing.T) {
 	}
 
 	c := client.New(conn)
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	if err := c.Connect(ctx); err != nil {
 		t.Fatalf("Connect failed: %v", err)
@@ -208,7 +209,8 @@ func TestHTTPTransportHeaders(t *testing.T) {
 	conn, _ := transport.Connect(context.Background())
 	c := client.New(conn)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	c.Connect(ctx)
 	defer c.Close()
 
@@ -253,7 +255,8 @@ func TestTransportReconnection(t *testing.T) {
 	conn1, _ := transport1.Connect(context.Background())
 	c1 := client.New(conn1)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	err := c1.Connect(ctx)
 	if err == nil {
 		t.Error("Expected first connection to fail")
