@@ -69,6 +69,56 @@ func TestServer_ServeHTTP_ForbiddenOrigin(t *testing.T) {
 	}
 }
 
+func TestServer_ServeHTTP_Options(t *testing.T) {
+	server := NewServer(":8080", nil)
+
+	req := httptest.NewRequest("OPTIONS", "/mcp", nil)
+	w := httptest.NewRecorder()
+
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("expected status 204, got %d", w.Code)
+	}
+
+	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
+		t.Errorf("expected Access-Control-Allow-Origin *, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+	}
+
+	if w.Header().Get("Access-Control-Allow-Methods") != "GET, POST, OPTIONS" {
+		t.Errorf("expected Access-Control-Allow-Methods 'GET, POST, OPTIONS', got %s", w.Header().Get("Access-Control-Allow-Methods"))
+	}
+
+	if w.Header().Get("Access-Control-Allow-Headers") != "Content-Type, Mcp-Session-Id, X-API-Key, Authorization, Last-Event-ID" {
+		t.Errorf("expected correct headers, got %s", w.Header().Get("Access-Control-Allow-Headers"))
+	}
+
+	if w.Header().Get("Access-Control-Max-Age") != "86400" {
+		t.Errorf("expected Access-Control-Max-Age '86400', got %s", w.Header().Get("Access-Control-Max-Age"))
+	}
+}
+
+func TestServer_ServeHTTP_OptionsWithAllowedOrigin(t *testing.T) {
+	server := NewServer(":8080", nil, WithAllowedOrigin("http://allowed.com"))
+
+	req := httptest.NewRequest("OPTIONS", "/mcp", nil)
+	w := httptest.NewRecorder()
+
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("expected status 204, got %d", w.Code)
+	}
+
+	if w.Header().Get("Access-Control-Allow-Origin") != "http://allowed.com" {
+		t.Errorf("expected Access-Control-Allow-Origin 'http://allowed.com', got %s", w.Header().Get("Access-Control-Allow-Origin"))
+	}
+
+	if w.Header().Get("Access-Control-Allow-Methods") != "GET, POST, OPTIONS" {
+		t.Errorf("expected Access-Control-Allow-Methods 'GET, POST, OPTIONS', got %s", w.Header().Get("Access-Control-Allow-Methods"))
+	}
+}
+
 func TestSessionStore_GetOrCreate(t *testing.T) {
 	store := NewSessionStore()
 

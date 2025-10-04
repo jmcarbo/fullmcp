@@ -233,6 +233,39 @@ func TestMCPHandler_ServeHTTP_MethodNotAllowed(t *testing.T) {
 	}
 }
 
+func TestMCPHandler_ServeHTTP_Options(t *testing.T) {
+	handleFunc := func(ctx context.Context, data []byte) ([]byte, error) {
+		return []byte(`{"result": "ok"}`), nil
+	}
+
+	handler := NewMCPHandler(handleFunc)
+
+	req := httptest.NewRequest("OPTIONS", "/mcp", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("expected status 204, got %d", w.Code)
+	}
+
+	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
+		t.Errorf("expected Access-Control-Allow-Origin *, got %s", w.Header().Get("Access-Control-Allow-Origin"))
+	}
+
+	if w.Header().Get("Access-Control-Allow-Methods") != "POST, OPTIONS" {
+		t.Errorf("expected Access-Control-Allow-Methods 'POST, OPTIONS', got %s", w.Header().Get("Access-Control-Allow-Methods"))
+	}
+
+	if w.Header().Get("Access-Control-Allow-Headers") != "Content-Type, X-API-Key, Authorization" {
+		t.Errorf("expected Access-Control-Allow-Headers 'Content-Type, X-API-Key, Authorization', got %s", w.Header().Get("Access-Control-Allow-Headers"))
+	}
+
+	if w.Header().Get("Access-Control-Max-Age") != "86400" {
+		t.Errorf("expected Access-Control-Max-Age '86400', got %s", w.Header().Get("Access-Control-Max-Age"))
+	}
+}
+
 func TestMCPHandler_ServeHTTP_HandleFuncError(t *testing.T) {
 	handleFunc := func(ctx context.Context, data []byte) ([]byte, error) {
 		return nil, io.ErrUnexpectedEOF
