@@ -311,3 +311,104 @@ func TestStreamConn_ReadWrite(t *testing.T) {
 		t.Errorf("expected to write %d bytes, wrote %d", len(`{"method":"test"}`), n)
 	}
 }
+
+func TestMatchOrigin(t *testing.T) {
+	tests := []struct {
+		name     string
+		origin   string
+		pattern  string
+		expected bool
+	}{
+		// Exact matches
+		{"exact match", "http://example.com", "http://example.com", true},
+		{"exact match https", "https://example.com", "https://example.com", true},
+
+		// Wildcard *
+		{"wildcard all", "http://example.com", "*", true},
+		{"wildcard all https", "https://example.com", "*", true},
+
+		// Subdomain wildcards
+		{"subdomain wildcard match", "http://sub.example.com", "http://*.example.com", true},
+		{"subdomain wildcard match deep", "http://deep.sub.example.com", "http://*.example.com", true},
+		{"subdomain wildcard no match", "http://example.com", "http://*.example.com", false},
+		{"subdomain wildcard different domain", "http://sub.other.com", "http://*.example.com", false},
+
+		// Protocol-less wildcards
+		{"protocol-less wildcard", "sub.example.com", "*.example.com", true},
+		{"protocol-less wildcard no match", "example.com", "*.example.com", false},
+
+		// HTTPS wildcards
+		{"https subdomain wildcard", "https://api.example.com", "https://*.example.com", true},
+		{"https wildcard wrong protocol", "http://api.example.com", "https://*.example.com", false},
+
+		// No wildcard mismatches
+		{"no wildcard mismatch", "http://other.com", "http://example.com", false},
+		{"no wildcard partial match", "http://example.com.evil.com", "http://example.com", false},
+
+		// Edge cases
+		{"empty origin", "", "http://example.com", false},
+		{"empty pattern", "http://example.com", "", false},
+		{"both empty", "", "", true},
+		{"wildcard prefix only", "http://example.com", "*example.com", true},
+		{"wildcard suffix only", "http://example.com", "http://example.*", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := matchOrigin(tt.origin, tt.pattern)
+			if result != tt.expected {
+				t.Errorf("matchOrigin(%q, %q) = %v, expected %v", tt.origin, tt.pattern, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestServer_WildcardOrigin(t *testing.T) {
+	server := NewServer(":8080", nil, WithAllowedOrigin("https://*.example.com"))
+
+	// Test matching origin
+	req := httptest.NewRequest("POST", "/mcp", nil)
+	req.Header.Set("Origin", "https://api.example.com")
+	w := httptest.NewRecorder()
+
+	server.ServeHTTP(w, req)
+
+	if w.Code == http.StatusForbidden {
+		t.Error("expected wildcard pattern to match subdomain")
+	}
+
+	// Test non-matching origin
+	req = httptest.NewRequest("POST", "/mcp", nil)
+	req.Header.Set("Origin", "https://other.com")
+	w = httptest.NewRecorder()
+
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Error("expected wildcard pattern to reject non-matching origin")
+	}
+}
+
+func TestServer_WildcardAll(t *testing.T) {
+	server := NewServer(":8080", nil, WithAllowedOrigin("*"))
+
+	// Test any origin should be allowed
+	origins := []string{
+		"http://example.com",
+		"https://api.example.com",
+		"http://localhost:3000",
+		"https://sub.domain.example.org",
+	}
+
+	for _, origin := range origins {
+		req := httptest.NewRequest("POST", "/mcp", nil)
+		req.Header.Set("Origin", origin)
+		w := httptest.NewRecorder()
+
+		server.ServeHTTP(w, req)
+
+		if w.Code == http.StatusForbidden {
+			t.Errorf("wildcard * should allow origin %q", origin)
+		}
+	}
+}

@@ -469,6 +469,67 @@ func WithAllowedOrigin(origin string) ServerOption {
 	}
 }
 
+// matchOrigin checks if an origin matches the allowed pattern (supports wildcards)
+func matchOrigin(origin, pattern string) bool {
+	if pattern == "*" {
+		return true
+	}
+
+	if pattern == origin {
+		return true
+	}
+
+	// Handle wildcard patterns like "*.example.com" or "https://*.example.com"
+	if !hasWildcard(pattern) {
+		return false
+	}
+
+	// Split pattern into prefix and suffix around the wildcard
+	parts := splitWildcard(pattern)
+	if len(parts) != 2 {
+		return false
+	}
+
+	prefix, suffix := parts[0], parts[1]
+
+	// Check if origin starts with prefix and ends with suffix
+	if len(origin) < len(prefix)+len(suffix) {
+		return false
+	}
+
+	return hasPrefix(origin, prefix) && hasSuffix(origin, suffix)
+}
+
+// hasWildcard checks if a pattern contains a wildcard
+func hasWildcard(pattern string) bool {
+	for i := 0; i < len(pattern); i++ {
+		if pattern[i] == '*' {
+			return true
+		}
+	}
+	return false
+}
+
+// splitWildcard splits a pattern on the first wildcard
+func splitWildcard(pattern string) []string {
+	for i := 0; i < len(pattern); i++ {
+		if pattern[i] == '*' {
+			return []string{pattern[:i], pattern[i+1:]}
+		}
+	}
+	return []string{pattern}
+}
+
+// hasPrefix checks if s starts with prefix
+func hasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+}
+
+// hasSuffix checks if s ends with suffix
+func hasSuffix(s, suffix string) bool {
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+}
+
 // ListenAndServe starts the Streamable HTTP server
 func (s *Server) ListenAndServe() error {
 	return http.ListenAndServe(s.addr, s)
@@ -479,7 +540,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Validate origin for security
 	if s.allowedOrigin != "" {
 		origin := r.Header.Get("Origin")
-		if origin != "" && origin != s.allowedOrigin {
+		if origin != "" && !matchOrigin(origin, s.allowedOrigin) {
 			http.Error(w, "forbidden origin", http.StatusForbidden)
 			return
 		}
@@ -523,7 +584,9 @@ func (s *Server) handlePOST(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delegate to the wrapped handler (which includes auth and MCP processing)
-	s.handler.ServeHTTP(w, r)
+	if s.handler != nil {
+		s.handler.ServeHTTP(w, r)
+	}
 }
 
 // handleGET handles GET requests (server-to-client SSE stream)
