@@ -542,19 +542,19 @@ func hasSuffix(s, suffix string) bool {
 // setCORSHeaders sets CORS headers on the response
 func (s *Server) setCORSHeaders(w http.ResponseWriter, r *http.Request) {
 	origin := r.Header.Get("Origin")
-	if origin == "" {
-		return
-	}
 
 	// Determine allowed origin to return
 	allowedOrigin := "*"
 	if s.allowedOrigin != "" {
-		// If we have a specific pattern and origin matches, echo it back
-		if matchOrigin(origin, s.allowedOrigin) {
+		// If we have a specific pattern and origin provided, check if it matches
+		if origin != "" && matchOrigin(origin, s.allowedOrigin) {
 			allowedOrigin = origin
-		} else {
-			// Don't set CORS headers for non-matching origins
+		} else if origin != "" {
+			// Origin provided but doesn't match - don't set CORS headers
 			return
+		} else {
+			// No origin header - use the configured pattern as-is
+			allowedOrigin = s.allowedOrigin
 		}
 	}
 

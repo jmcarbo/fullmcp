@@ -489,8 +489,11 @@ func TestServer_CORSHeadersNoOrigin(t *testing.T) {
 
 	server.ServeHTTP(w, req)
 
-	// Should not set CORS headers when no Origin header is present
-	if w.Header().Get("Access-Control-Allow-Origin") != "" {
-		t.Errorf("expected no Access-Control-Allow-Origin header, got %q", w.Header().Get("Access-Control-Allow-Origin"))
+	// Should set CORS headers even when no Origin header is present
+	// to prevent CORS errors for requests without Origin header
+	got := w.Header().Get("Access-Control-Allow-Origin")
+	want := "https://example.com"
+	if got != want {
+		t.Errorf("expected Access-Control-Allow-Origin header %q, got %q", want, got)
 	}
 }
