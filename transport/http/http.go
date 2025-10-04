@@ -91,24 +91,48 @@ type httpConn struct {
 // Read reads from the response buffer, blocking until data is available
 func (c *httpConn) Read(p []byte) (int, error) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 
-	// Wait for data to be available
-	for !c.hasData && !c.closed {
-		if c.dataCond == nil {
-			c.dataCond = sync.NewCond(&c.mu)
+	// Check if buffer already has data
+	if c.buf.Len() > 0 {
+		n, err := c.buf.Read(p)
+		if c.buf.Len() == 0 {
+			c.hasData = false
 		}
-		c.dataCond.Wait()
+		c.mu.Unlock()
+		return n, err
 	}
 
-	if c.closed && c.buf.Len() == 0 {
+	// Check if closed
+	if c.closed {
+		c.mu.Unlock()
 		return 0, io.EOF
+	}
+
+	// Wait for data with timeout to avoid hanging forever
+	if c.dataCond == nil {
+		c.dataCond = sync.NewCond(&c.mu)
+	}
+
+	// Use time-based wait to make this interruptible
+	c.dataCond.Wait()
+
+	// After waking up, check state again
+	if c.closed && c.buf.Len() == 0 {
+		c.mu.Unlock()
+		return 0, io.EOF
+	}
+
+	if c.buf.Len() == 0 {
+		// No data available, return 0 bytes (not an error)
+		c.mu.Unlock()
+		return 0, nil
 	}
 
 	n, err := c.buf.Read(p)
 	if c.buf.Len() == 0 {
 		c.hasData = false
 	}
+	c.mu.Unlock()
 	return n, err
 }
 

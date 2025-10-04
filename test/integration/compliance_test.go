@@ -70,7 +70,8 @@ func TestJSONRPCCompliance(t *testing.T) {
 	conn, _ := transport.Connect(context.Background())
 	c := client.New(conn)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	c.Connect(ctx)
 	defer c.Close()
 
@@ -119,7 +120,8 @@ func TestMCPProtocolVersion(t *testing.T) {
 	conn, _ := transport.Connect(context.Background())
 	c := client.New(conn)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	c.Connect(ctx)
 	defer c.Close()
 
@@ -181,7 +183,8 @@ func TestCapabilityNegotiation(t *testing.T) {
 	conn, _ := transport.Connect(context.Background())
 	c := client.New(conn)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	c.Connect(ctx)
 	defer c.Close()
 
@@ -232,7 +235,8 @@ func TestContentTypeHeaders(t *testing.T) {
 	conn, _ := transport.Connect(context.Background())
 	c := client.New(conn)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	c.Connect(ctx)
 	defer c.Close()
 
@@ -285,7 +289,8 @@ func TestStreamableHTTPSessionID(t *testing.T) {
 	conn, _ := transport.Connect(context.Background())
 	c := client.New(conn)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	c.Connect(ctx)
 	defer c.Close()
 
@@ -397,7 +402,8 @@ func TestErrorCodeCompliance(t *testing.T) {
 	conn, _ := transport.Connect(context.Background())
 	c := client.New(conn)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	c.Connect(ctx)
 	defer c.Close()
 
@@ -445,7 +451,8 @@ func TestRequestIDUniqueness(t *testing.T) {
 	conn, _ := transport.Connect(context.Background())
 	c := client.New(conn)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	c.Connect(ctx)
 	defer c.Close()
 
@@ -502,7 +509,8 @@ func TestNotificationCompliance(t *testing.T) {
 	conn, _ := transport.Connect(context.Background())
 	c := client.New(conn)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	c.Connect(ctx)
 	defer c.Close()
 

@@ -265,18 +265,24 @@ func (c *streamConn) readFromSSEStream(p []byte, reader *sseReader) (int, error)
 	}()
 
 	c.mu.Lock()
+
 	for c.readBuf.Len() == 0 {
+		c.mu.Unlock()
 		select {
 		case data := <-sseDataChan:
+			c.mu.Lock()
 			if data != nil {
 				c.readBuf.Write(data)
 				c.readBuf.WriteByte('\n')
 			}
 		case err := <-sseErrChan:
-			c.mu.Unlock()
 			return 0, err
-		default:
-			c.bufferCond.Wait()
+		case <-c.transport.ctx.Done():
+			return 0, c.transport.ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+			// Timeout to avoid blocking forever when no SSE data is available
+			// This allows the transport to work with POST-response pattern
+			return 0, nil
 		}
 	}
 
@@ -335,6 +341,9 @@ func (c *streamConn) Write(p []byte) (int, error) {
 
 // Close closes the connection
 func (c *streamConn) Close() error {
+	c.mu.Lock()
+	c.bufferCond.Broadcast()
+	c.mu.Unlock()
 	return c.transport.Close()
 }
 
