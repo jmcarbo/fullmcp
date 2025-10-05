@@ -95,7 +95,7 @@ func TestServer_ServeHTTP_Options(t *testing.T) {
 		t.Errorf("expected Access-Control-Allow-Methods 'GET, POST, OPTIONS', got %s", w.Header().Get("Access-Control-Allow-Methods"))
 	}
 
-	if w.Header().Get("Access-Control-Allow-Headers") != "Content-Type, Mcp-Session-Id, X-API-Key, Authorization, Last-Event-ID" {
+	if w.Header().Get("Access-Control-Allow-Headers") != "Content-Type, Mcp-Session-Id, X-API-Key, Authorization, Last-Event-ID, Mcp-Protocol-Version" {
 		t.Errorf("expected correct headers, got %s", w.Header().Get("Access-Control-Allow-Headers"))
 	}
 
@@ -483,6 +483,58 @@ func TestServer_CORSHeadersWithWildcard(t *testing.T) {
 	// When using wildcard pattern, should echo back the origin
 	if w.Header().Get("Access-Control-Allow-Origin") != "https://api.example.com" {
 		t.Errorf("expected Access-Control-Allow-Origin header to be 'https://api.example.com', got %q", w.Header().Get("Access-Control-Allow-Origin"))
+	}
+}
+
+func TestServer_CORSHeadersWithReferer(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	})
+
+	server := NewServer(":8080", handler)
+
+	req := httptest.NewRequest("POST", "/", nil)
+	req.Header.Set("Referer", "http://localhost:6274/inspector")
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Errorf("expected status 202, got %d", w.Code)
+	}
+
+	// Should extract origin from Referer and use it
+	origin := w.Header().Get("Access-Control-Allow-Origin")
+	if origin != "http://localhost:6274" {
+		t.Errorf("expected Access-Control-Allow-Origin http://localhost:6274, got %s", origin)
+	}
+
+	// Should set credentials when using specific origin from Referer
+	if w.Header().Get("Access-Control-Allow-Credentials") != "true" {
+		t.Errorf("expected Access-Control-Allow-Credentials true")
+	}
+}
+
+func TestExtractOriginFromReferer(t *testing.T) {
+	tests := []struct {
+		referer  string
+		expected string
+	}{
+		{"http://localhost:6274/", "http://localhost:6274"},
+		{"http://localhost:6274/inspector", "http://localhost:6274"},
+		{"https://example.com/path/to/page", "https://example.com"},
+		{"https://sub.example.com:8080/test", "https://sub.example.com:8080"},
+		{"http://localhost:3000", "http://localhost:3000"},
+		{"invalid", ""},
+		{"", ""},
+	}
+
+	for _, tt := range tests {
+		result := extractOriginFromReferer(tt.referer)
+		if result != tt.expected {
+			t.Errorf("extractOriginFromReferer(%q) = %q, want %q", tt.referer, result, tt.expected)
+		}
 	}
 }
 

@@ -543,23 +543,78 @@ func hasSuffix(s, suffix string) bool {
 func (s *Server) setCORSHeaders(w http.ResponseWriter, r *http.Request) {
 	origin := r.Header.Get("Origin")
 
+	// If no Origin header, try Referer as fallback (some clients send Referer instead)
+	if origin == "" {
+		if referer := r.Header.Get("Referer"); referer != "" {
+			// Extract origin from referer URL
+			origin = extractOriginFromReferer(referer)
+		}
+	}
+
 	// Determine allowed origin to return
 	allowedOrigin := "*"
+	useCredentials := false
+
 	if s.allowedOrigin != "" {
 		// If we have a specific pattern and origin provided, check if it matches
 		if origin != "" && matchOrigin(origin, s.allowedOrigin) {
 			allowedOrigin = origin
+			useCredentials = true
 		} else if origin != "" {
 			// Origin provided but doesn't match - don't set CORS headers
 			return
 		} else {
 			// No origin header - use the configured pattern as-is
 			allowedOrigin = s.allowedOrigin
+			useCredentials = true
+		}
+	} else if origin != "" {
+		// No specific origin configured, but request has Origin header
+		// Use the request origin to allow credentials (can't use * with credentials)
+		allowedOrigin = origin
+		useCredentials = true
+	}
+	// If still no origin (no Origin, no Referer), use wildcard WITHOUT credentials
+
+	// Always set these headers for POST/GET responses
+	w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id, X-API-Key, Authorization, Last-Event-ID, Mcp-Protocol-Version")
+	w.Header().Set("Access-Control-Expose-Headers", "Mcp-Session-Id")
+	if useCredentials {
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+	}
+}
+
+// extractOriginFromReferer extracts the origin (scheme + host) from a referer URL
+func extractOriginFromReferer(referer string) string {
+	// Find the protocol
+	protoEnd := 0
+	for i := 0; i < len(referer); i++ {
+		if i+2 < len(referer) && referer[i:i+3] == "://" {
+			protoEnd = i + 3
+			break
 		}
 	}
 
-	w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	if protoEnd == 0 {
+		return ""
+	}
+
+	// Find the end of host (first / after protocol)
+	hostEnd := protoEnd
+	for i := protoEnd; i < len(referer); i++ {
+		if referer[i] == '/' {
+			hostEnd = i
+			break
+		}
+	}
+
+	if hostEnd == protoEnd {
+		hostEnd = len(referer)
+	}
+
+	return referer[:hostEnd]
 }
 
 // ListenAndServe starts the Streamable HTTP server
@@ -573,9 +628,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s.allowedOrigin != "" {
 		origin := r.Header.Get("Origin")
 		if origin != "" && !matchOrigin(origin, s.allowedOrigin) {
-			// Set CORS headers even for forbidden origin so browser can see the error
+			// Set CORS headers for forbidden origin so browser can see the error properly
 			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			http.Error(w, "forbidden origin", http.StatusForbidden)
 			return
 		}
@@ -583,28 +637,55 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Handle CORS preflight
 	if r.Method == http.MethodOptions {
-		allowedOrigin := "*"
-		if s.allowedOrigin != "" {
-			allowedOrigin = s.allowedOrigin
+		origin := r.Header.Get("Origin")
+
+		// If no Origin header, try Referer as fallback
+		if origin == "" {
+			if referer := r.Header.Get("Referer"); referer != "" {
+				origin = extractOriginFromReferer(referer)
+			}
 		}
+
+		allowedOrigin := "*"
+		useCredentials := false
+
+		if s.allowedOrigin != "" {
+			if origin != "" && matchOrigin(origin, s.allowedOrigin) {
+				allowedOrigin = origin
+				useCredentials = true
+			} else {
+				allowedOrigin = s.allowedOrigin
+				useCredentials = true
+			}
+		} else if origin != "" {
+			// No specific origin configured, use request origin for credentials
+			allowedOrigin = origin
+			useCredentials = true
+		}
+
 		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id, X-API-Key, Authorization, Last-Event-ID")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id, X-API-Key, Authorization, Last-Event-ID, Mcp-Protocol-Version")
+		w.Header().Set("Access-Control-Expose-Headers", "Mcp-Session-Id")
 		w.Header().Set("Access-Control-Max-Age", "86400")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		if useCredentials {
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
-	// Set CORS headers for actual requests
-	s.setCORSHeaders(w, r)
-
 	switch r.Method {
 	case http.MethodPost:
+		// Set CORS headers before handling POST
+		s.setCORSHeaders(w, r)
 		s.handlePOST(w, r)
 	case http.MethodGet:
+		// Set CORS headers before handling GET
+		s.setCORSHeaders(w, r)
 		s.handleGET(w, r)
 	default:
+		s.setCORSHeaders(w, r)
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }

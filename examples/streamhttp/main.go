@@ -1,323 +1,274 @@
-// Package main demonstrates Streamable HTTP transport in MCP (2025-03-26 specification)
+// Package main demonstrates a Streamable HTTP MCP server with tools, resources, and prompts.
 package main
 
 import (
+	"context"
+	"encoding/json"
+	"flag"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"time"
+
+	"github.com/jmcarbo/fullmcp/builder"
+	"github.com/jmcarbo/fullmcp/mcp"
+	"github.com/jmcarbo/fullmcp/server"
+	"github.com/jmcarbo/fullmcp/transport/streamhttp"
 )
 
+type MathInput struct {
+	A float64 `json:"a" jsonschema:"description=First number"`
+	B float64 `json:"b" jsonschema:"description=Second number"`
+}
+
+type GreetInput struct {
+	Name     string `json:"name" jsonschema:"description=Person's name"`
+	Language string `json:"language,omitempty" jsonschema:"description=Language code (en, es, fr)"`
+}
+
+// setupServer creates and configures the MCP server with tools, resources, and prompts
+func setupServer() *server.Server {
+	srv := server.New("streamhttp-demo-server",
+		server.WithVersion("1.0.0"),
+		server.WithInstructions("Demo server with Streamable HTTP transport showcasing tools, resources, and prompts"),
+	)
+
+	// Add Tools
+	addTool, _ := builder.NewTool("add").
+		Description("Add two numbers").
+		Handler(func(_ context.Context, input MathInput) (float64, error) {
+			return input.A + input.B, nil
+		}).
+		Build()
+	_ = srv.AddTool(addTool)
+
+	multiplyTool, _ := builder.NewTool("multiply").
+		Description("Multiply two numbers").
+		Handler(func(_ context.Context, input MathInput) (float64, error) {
+			return input.A * input.B, nil
+		}).
+		Build()
+	_ = srv.AddTool(multiplyTool)
+
+	greetTool, _ := builder.NewTool("greet").
+		Description("Generate a greeting in different languages").
+		Handler(func(_ context.Context, input GreetInput) (string, error) {
+			greeting := "Hello"
+			switch input.Language {
+			case "es":
+				greeting = "Hola"
+			case "fr":
+				greeting = "Bonjour"
+			case "de":
+				greeting = "Guten Tag"
+			}
+			return fmt.Sprintf("%s, %s!", greeting, input.Name), nil
+		}).
+		Build()
+	_ = srv.AddTool(greetTool)
+
+	// Add Resources
+	configResource := builder.NewResource("config://server").
+		Name("Server Configuration").
+		Description("Current server configuration").
+		MimeType("application/json").
+		Reader(func(_ context.Context) ([]byte, error) {
+			config := map[string]interface{}{
+				"version":   "1.0.0",
+				"debug":     true,
+				"timestamp": time.Now().Format(time.RFC3339),
+			}
+			return json.Marshal(config)
+		}).
+		Build()
+	_ = srv.AddResource(configResource)
+
+	statusResource := builder.NewResource("status://health").
+		Name("Server Health Status").
+		Description("Current server health information").
+		MimeType("application/json").
+		Reader(func(_ context.Context) ([]byte, error) {
+			status := map[string]interface{}{
+				"status":  "healthy",
+				"uptime":  time.Since(startTime).String(),
+				"checked": time.Now().Format(time.RFC3339),
+			}
+			return json.Marshal(status)
+		}).
+		Build()
+	_ = srv.AddResource(statusResource)
+
+	// Add Resource Template for file reading
+	fileTemplate := builder.NewResourceTemplate("file:///{path}").
+		Name("File Reader").
+		Description("Read files from the filesystem").
+		MimeType("text/plain").
+		ReaderSimple(func(_ context.Context, path string) ([]byte, error) {
+			// In production, validate path to prevent directory traversal
+			return os.ReadFile(path)
+		}).
+		Build()
+	_ = srv.AddResourceTemplate(fileTemplate)
+
+	// Add Prompts
+	greetingPrompt := builder.NewPrompt("greeting").
+		Description("Generate a greeting message").
+		Argument("name", "Person's name", true).
+		Argument("language", "Language for greeting (en, es, fr, de)", false).
+		Renderer(func(_ context.Context, args map[string]interface{}) ([]*mcp.PromptMessage, error) {
+			name := "there"
+			if n, ok := args["name"].(string); ok {
+				name = n
+			}
+
+			language := "en"
+			if l, ok := args["language"].(string); ok {
+				language = l
+			}
+
+			greeting := "Hello"
+			switch language {
+			case "es":
+				greeting = "Hola"
+			case "fr":
+				greeting = "Bonjour"
+			case "de":
+				greeting = "Guten Tag"
+			}
+
+			return []*mcp.PromptMessage{
+				{
+					Role: "user",
+					Content: []mcp.Content{
+						mcp.TextContent{
+							Type: "text",
+							Text: fmt.Sprintf("%s, %s!", greeting, name),
+						},
+					},
+				},
+			}, nil
+		}).
+		Build()
+	_ = srv.AddPrompt(greetingPrompt)
+
+	calcPrompt := builder.NewPrompt("calculation").
+		Description("Create a calculation request").
+		Argument("operation", "The operation to perform (add, multiply)", true).
+		Argument("a", "First number", true).
+		Argument("b", "Second number", true).
+		Renderer(func(_ context.Context, args map[string]interface{}) ([]*mcp.PromptMessage, error) {
+			operation := args["operation"].(string)
+			a := args["a"]
+			b := args["b"]
+
+			return []*mcp.PromptMessage{
+				{
+					Role: "user",
+					Content: []mcp.Content{
+						mcp.TextContent{
+							Type: "text",
+							Text: fmt.Sprintf("Please %s %v and %v", operation, a, b),
+						},
+					},
+				},
+			}, nil
+		}).
+		Build()
+	_ = srv.AddPrompt(calcPrompt)
+
+	return srv
+}
+
+// createMCPHandler creates an HTTP handler for processing MCP messages
+// Note: CORS is handled by streamhttp.Server, not here
+func createMCPHandler(srv *server.Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[MCP] %s %s from %s", r.Method, r.URL.Path, r.Header.Get("Origin"))
+
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "failed to read request", http.StatusBadRequest)
+			return
+		}
+		defer func() { _ = r.Body.Close() }()
+
+		var msg mcp.Message
+		if err := json.Unmarshal(body, &msg); err != nil {
+			log.Printf("[MCP] Invalid JSON: %v", err)
+			http.Error(w, "invalid JSON-RPC message", http.StatusBadRequest)
+			return
+		}
+
+		log.Printf("[MCP] Processing: method=%s id=%v", msg.Method, msg.ID)
+
+		response := srv.HandleMessage(r.Context(), &msg)
+		if response == nil {
+			// For notifications, return 202 Accepted with no body
+			log.Printf("[MCP] Notification processed: %s → 202 Accepted", msg.Method)
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
+
+		log.Printf("[MCP] Request processed: %s → 200 OK", msg.Method)
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Printf("Failed to encode response: %v", err)
+		}
+	}
+}
+
+var startTime = time.Now()
+
 func main() {
-	fmt.Println("MCP Streamable HTTP Transport Example")
-	fmt.Println("======================================")
-	fmt.Println()
+	addr := flag.String("addr", ":8080", "TCP address to listen on (e.g., :8080 or localhost:3000)")
+	allowedOrigin := flag.String("origin", "*", "Allowed origin for CORS (* for all origins)")
+	flag.Parse()
 
-	// Example 1: What is Streamable HTTP?
-	fmt.Println("💡 Streamable HTTP Overview")
-	fmt.Println("===========================")
-	fmt.Println()
-	fmt.Println("Streamable HTTP is a new transport mechanism introduced in MCP 2025-03-26")
-	fmt.Println("that replaces the HTTP+SSE transport from 2024-11-05. It provides:")
-	fmt.Println()
-	fmt.Println("  • Bi-directional communication over HTTP")
-	fmt.Println("  • POST for client-to-server messages")
-	fmt.Println("  • GET for server-to-client SSE stream")
-	fmt.Println("  • Session management with unique IDs")
-	fmt.Println("  • Stream resumption with event IDs")
-	fmt.Println("  • Chunked transfer encoding support")
-	fmt.Println()
+	srv := setupServer()
+	mcpHandler := createMCPHandler(srv)
 
-	// Example 2: How It Works
-	fmt.Println("🔄 How It Works")
-	fmt.Println("===============")
-	fmt.Println()
-	fmt.Println("Client-to-Server (POST):")
-	fmt.Println("  1. Client sends POST request with JSON-RPC message")
-	fmt.Println("  2. Headers: Content-Type: application/json")
-	fmt.Println("  3. Headers: Mcp-Session-Id: <session-id>")
-	fmt.Println("  4. Server processes and returns response or 202 Accepted")
-	fmt.Println()
-	fmt.Println("Server-to-Client (GET):")
-	fmt.Println("  1. Client opens GET request to same endpoint")
-	fmt.Println("  2. Headers: Accept: text/event-stream")
-	fmt.Println("  3. Headers: Mcp-Session-Id: <session-id>")
-	fmt.Println("  4. Server streams SSE events with messages")
-	fmt.Println()
-
-	// Example 3: Session Management
-	fmt.Println("🔑 Session Management")
-	fmt.Println("====================")
-	fmt.Println()
-	fmt.Println("During initialization:")
-	fmt.Print(`
-  POST /mcp HTTP/1.1
-  Content-Type: application/json
-
-  {"jsonrpc":"2.0","method":"initialize","id":1,...}
-
-  HTTP/1.1 200 OK
-  Mcp-Session-Id: a1b2c3d4e5f6...
-  Content-Type: application/json
-
-  {"jsonrpc":"2.0","result":{...},"id":1}
-`)
-	fmt.Println("Server assigns session ID in Mcp-Session-Id header")
-	fmt.Println("Client includes this ID in all subsequent requests")
-	fmt.Println()
-
-	// Example 4: POST Request Examples
-	fmt.Println("📤 POST Request Examples")
-	fmt.Println("========================")
-	fmt.Println()
-	fmt.Println("Single Request:")
-	fmt.Print(`
-  POST /mcp HTTP/1.1
-  Content-Type: application/json
-  Mcp-Session-Id: a1b2c3d4e5f6...
-  Accept: application/json, text/event-stream
-
-  {"jsonrpc":"2.0","method":"tools/list","id":2}
-`)
-	fmt.Println("Batch Request:")
-	fmt.Print(`
-  POST /mcp HTTP/1.1
-  Content-Type: application/json
-  Mcp-Session-Id: a1b2c3d4e5f6...
-
-  [
-    {"jsonrpc":"2.0","method":"tools/list","id":2},
-    {"jsonrpc":"2.0","method":"resources/list","id":3}
-  ]
-`)
-	fmt.Println()
-	fmt.Println("Notification (no response expected):")
-	fmt.Print(`
-  POST /mcp HTTP/1.1
-  Content-Type: application/json
-  Mcp-Session-Id: a1b2c3d4e5f6...
-
-  {"jsonrpc":"2.0","method":"notifications/cancelled","params":{...}}
-
-  HTTP/1.1 202 Accepted
-`)
-
-	// Example 5: GET SSE Stream
-	fmt.Println("📥 GET SSE Stream")
-	fmt.Println("=================")
-	fmt.Println()
-	fmt.Println("Opening SSE connection:")
-	fmt.Print(`
-  GET /mcp HTTP/1.1
-  Accept: text/event-stream
-  Cache-Control: no-cache
-  Mcp-Session-Id: a1b2c3d4e5f6...
-
-  HTTP/1.1 200 OK
-  Content-Type: text/event-stream
-  Cache-Control: no-cache
-  Connection: keep-alive
-
-  id: 1
-  data: {"jsonrpc":"2.0","method":"sampling/createMessage",...}
-
-  id: 2
-  data: {"jsonrpc":"2.0","method":"notifications/progress",...}
-`)
-
-	// Example 6: Stream Resumption
-	fmt.Println("🔄 Stream Resumption")
-	fmt.Println("====================")
-	fmt.Println()
-	fmt.Println("If connection drops, client can resume:")
-	fmt.Print(`
-  GET /mcp HTTP/1.1
-  Accept: text/event-stream
-  Mcp-Session-Id: a1b2c3d4e5f6...
-  Last-Event-ID: 42
-
-  Server replays events after event ID 42
-`)
-	fmt.Println()
-	fmt.Println("Benefits:")
-	fmt.Println("  • No message loss on reconnection")
-	fmt.Println("  • Reliable delivery over unreliable networks")
-	fmt.Println("  • Better mobile/flaky connection support")
-	fmt.Println()
-
-	// Example 7: Server Implementation
-	fmt.Println("🖥️  Server Implementation")
-	fmt.Println("=========================")
-	fmt.Println()
-	fmt.Println("Basic server setup:")
-	fmt.Print(`
-  import "github.com/jmcarbo/fullmcp/transport/streamhttp"
-
-  // Create handler
-  handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-      // Process MCP messages
-  })
-
-  // Create server
-  server := streamhttp.NewServer(":8080", handler,
-      streamhttp.WithAllowedOrigin("http://localhost:3000"),
-  )
-
-  // Start server
-  log.Fatal(server.ListenAndServe())
-`)
-	fmt.Println()
-
-	// Example 8: Client Implementation
-	fmt.Println("🔌 Client Implementation")
-	fmt.Println("========================")
-	fmt.Println()
-	fmt.Println("Basic client setup:")
-	fmt.Print(`
-  import "github.com/jmcarbo/fullmcp/transport/streamhttp"
-
-  // Create transport
-  transport := streamhttp.New("http://localhost:8080/mcp")
-
-  // Connect
-  conn, err := transport.Connect(ctx)
-  if err != nil {
-      log.Fatal(err)
-  }
-  defer conn.Close()
-
-  // Session ID is automatically managed after initialization
-`)
-	fmt.Println()
-
-	// Example 9: Security Considerations
-	fmt.Println("🔒 Security Considerations")
-	fmt.Println("==========================")
-	fmt.Println()
-	fmt.Println("Origin Validation:")
-	fmt.Println("  • Validate Origin header on all requests")
-	fmt.Println("  • Reject requests from untrusted origins")
-	fmt.Println("  • Use CORS policies appropriately")
-	fmt.Println()
-	fmt.Println("Session IDs:")
-	fmt.Println("  • Must be cryptographically secure")
-	fmt.Println("  • Should be globally unique (UUID, JWT, hash)")
-	fmt.Println("  • Only visible ASCII characters (0x21-0x7E)")
-	fmt.Println("  • Implement session timeouts")
-	fmt.Println()
-	fmt.Println("Localhost Binding:")
-	fmt.Println("  • Bind to localhost when possible")
-	fmt.Println("  • Use authentication for public endpoints")
-	fmt.Println("  • Consider rate limiting")
-	fmt.Println()
-
-	// Example 10: Advantages over HTTP+SSE
-	fmt.Println("✨ Advantages over HTTP+SSE")
-	fmt.Println("===========================")
-	fmt.Println()
-
-	comparisons := []struct {
-		aspect  string
-		httpSSE string
-		stream  string
-	}{
-		{"Endpoints", "2 separate (POST + SSE)", "1 unified endpoint"},
-		{"Session Management", "Manual correlation", "Built-in with Mcp-Session-Id"},
-		{"Resumption", "Not standardized", "Last-Event-ID support"},
-		{"Batching", "Limited", "Full JSON-RPC batch support"},
-		{"Complexity", "Higher", "Lower (single endpoint)"},
-		{"Scalability", "Good", "Better (unified state)"},
+	// Create Streamable HTTP server with CORS support
+	var serverOpts []streamhttp.ServerOption
+	if *allowedOrigin != "" && *allowedOrigin != "*" {
+		serverOpts = append(serverOpts, streamhttp.WithAllowedOrigin(*allowedOrigin))
 	}
 
-	for _, c := range comparisons {
-		fmt.Printf("  %-20s | %-25s | %s\n", c.aspect, c.httpSSE, c.stream)
+	streamServer := streamhttp.NewServer(*addr, mcpHandler, serverOpts...)
+
+	log.Println("═══════════════════════════════════════════════════════════")
+	log.Printf("Starting Streamable HTTP MCP Server")
+	log.Println("═══════════════════════════════════════════════════════════")
+	log.Printf("Address:         %s", *addr)
+	log.Printf("Transport:       Streamable HTTP (MCP 2025-03-26)")
+	log.Printf("CORS Origin:     %s", *allowedOrigin)
+	log.Printf("")
+	log.Printf("For MCP Inspector, connect to: http://localhost%s", *addr)
+	log.Println("───────────────────────────────────────────────────────────")
+	log.Println("Available Tools:")
+	log.Println("  • add       - Add two numbers")
+	log.Println("  • multiply  - Multiply two numbers")
+	log.Println("  • greet     - Generate multilingual greetings")
+	log.Println("───────────────────────────────────────────────────────────")
+	log.Println("Available Resources:")
+	log.Println("  • config://server  - Server configuration")
+	log.Println("  • status://health  - Server health status")
+	log.Println("  • file:///{path}   - File reader template")
+	log.Println("───────────────────────────────────────────────────────────")
+	log.Println("Available Prompts:")
+	log.Println("  • greeting     - Generate greeting messages")
+	log.Println("  • calculation  - Create calculation requests")
+	log.Println("═══════════════════════════════════════════════════════════")
+	log.Printf("Server ready at http://localhost%s", *addr)
+	log.Println()
+
+	if err := http.ListenAndServe(*addr, streamServer); err != nil {
+		log.Fatalf("Server failed: %v", err)
 	}
-	fmt.Println()
-
-	// Example 11: Use Cases
-	fmt.Println("💼 Use Cases")
-	fmt.Println("============")
-	fmt.Println()
-
-	useCases := []struct {
-		title       string
-		description string
-	}{
-		{"Web Applications", "Browser-based clients with full duplex communication"},
-		{"Mobile Apps", "Resilient communication with automatic resumption"},
-		{"Cloud Services", "Scalable server-to-server MCP communication"},
-		{"Real-time Updates", "Server-initiated notifications and progress updates"},
-		{"Long-running Operations", "Bidirectional streaming for complex workflows"},
-	}
-
-	for i, uc := range useCases {
-		fmt.Printf("   %d. %s\n", i+1, uc.title)
-		fmt.Printf("      %s\n", uc.description)
-		fmt.Println()
-	}
-
-	// Example 12: Best Practices
-	fmt.Println("📋 Best Practices")
-	fmt.Println("=================")
-	fmt.Println()
-	fmt.Println("For Clients:")
-	fmt.Println("  ✓ Store and include Mcp-Session-Id from initialization")
-	fmt.Println("  ✓ Handle connection drops gracefully")
-	fmt.Println("  ✓ Use Last-Event-ID for resumption")
-	fmt.Println("  ✓ Implement exponential backoff for reconnection")
-	fmt.Println("  ✓ Monitor connection health with keep-alives")
-	fmt.Println()
-	fmt.Println("For Servers:")
-	fmt.Println("  ✓ Generate secure, unique session IDs")
-	fmt.Println("  ✓ Implement session timeouts")
-	fmt.Println("  ✓ Store events for resumption (buffer recent events)")
-	fmt.Println("  ✓ Send keep-alive comments on SSE stream")
-	fmt.Println("  ✓ Validate Origin header for security")
-	fmt.Println("  ✓ Handle graceful session termination")
-	fmt.Println()
-
-	// Example 13: Error Handling
-	fmt.Println("⚠️  Error Handling")
-	fmt.Println("==================")
-	fmt.Println()
-	fmt.Println("HTTP Status Codes:")
-	fmt.Println("  200 OK           - Request with response")
-	fmt.Println("  202 Accepted     - Notification (no response)")
-	fmt.Println("  400 Bad Request  - Invalid request/missing session ID")
-	fmt.Println("  403 Forbidden    - Invalid origin")
-	fmt.Println("  404 Not Found    - Session not found")
-	fmt.Println("  500 Internal     - Server error")
-	fmt.Println()
-	fmt.Println("Connection Errors:")
-	fmt.Println("  • Network timeout: Retry with exponential backoff")
-	fmt.Println("  • Session expired: Re-initialize")
-	fmt.Println("  • Stream closed: Reopen with Last-Event-ID")
-	fmt.Println()
-
-	// Example 14: Performance Characteristics
-	fmt.Println("📊 Performance Characteristics")
-	fmt.Println("==============================")
-	fmt.Println()
-	fmt.Println("Latency:")
-	fmt.Println("  • POST requests: Single round-trip")
-	fmt.Println("  • Server messages: Instant (SSE push)")
-	fmt.Println("  • Reconnection: ~1-3 seconds typical")
-	fmt.Println()
-	fmt.Println("Throughput:")
-	fmt.Println("  • Batch requests reduce overhead")
-	fmt.Println("  • SSE streaming for high-frequency updates")
-	fmt.Println("  • Connection reuse improves efficiency")
-	fmt.Println()
-	fmt.Println("Resource Usage:")
-	fmt.Println("  • One long-lived connection per session")
-	fmt.Println("  • Minimal memory for session state")
-	fmt.Println("  • Efficient for many concurrent clients")
-	fmt.Println()
-
-	fmt.Println("✨ Streamable HTTP demonstration complete!")
-	fmt.Println()
-	fmt.Println("Key Takeaways:")
-	fmt.Println("  1. Single unified endpoint for bi-directional communication")
-	fmt.Println("  2. Session management built into the protocol")
-	fmt.Println("  3. Stream resumption prevents message loss")
-	fmt.Println("  4. More scalable than HTTP+SSE")
-	fmt.Println("  5. Better security with origin validation")
-	fmt.Println("  6. Ideal for web and mobile applications")
 }

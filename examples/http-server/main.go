@@ -73,19 +73,10 @@ func setupServer() *server.Server {
 	return srv
 }
 
+// createMCPHandler creates the core MCP message handler
+// Note: Does not handle CORS - caller is responsible for CORS headers
 func createMCPHandler(srv *server.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers for all requests
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key, Authorization")
-
-		// Handle CORS preflight
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -146,7 +137,27 @@ func runRegularServer(addr string, srv *server.Server, authProvider *apikey.Prov
 	log.Printf("Example: curl -H 'X-API-Key: secret-key-123' -X POST http://%s/mcp -d '{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":1}'", getHostURL(addr))
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/mcp", createMCPHandler(srv))
+
+	// Wrap handler with CORS for regular mode (streamhttp handles CORS for streaming mode)
+	corsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key, Authorization")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		createMCPHandler(srv)(w, r)
+	})
+
+	mux.Handle("/mcp", corsHandler)
 
 	handler := authProvider.Middleware()(mux)
 
